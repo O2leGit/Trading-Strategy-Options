@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3847/)",
+      "mcp__Control_Chrome__open_url",
+      "Bash(start http://localhost:3847)",
+      "Bash(npm install:*)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 20340 //F)",
+      "Bash(serve --version)",
+      "Bash(echo $PATH)",
+      "Bash(node -e \"console.log\\(process.execPath\\)\")",
+      "mcp__Desktop_Commander__read_file",
+      "mcp__Desktop_Commander__get_file_info",
+      "mcp__Desktop_Commander__start_search",
+      "mcp__Desktop_Commander__get_more_search_results",
+      "mcp__Desktop_Commander__start_process",
+      "mcp__Desktop_Commander__read_process_output",
+      "Bash(node -e \":*)"
+    ]
+  }
+}
