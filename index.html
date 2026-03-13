@@ -553,6 +553,34 @@ body {
 .signal-card.close { border-left-color: var(--red); }
 .signal-card.hold { border-left-color: #888; }
 .signal-card.skip { border-left-color: var(--border); opacity: 0.55; }
+
+/* Schwab Integration */
+.schwab-execute-btn { width:100%; margin-top:10px; padding:8px 12px; background:linear-gradient(135deg,#059669,#10b981); color:#fff; border:none; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.2s; }
+.schwab-execute-btn:hover { background:linear-gradient(135deg,#047857,#059669); transform:translateY(-1px); box-shadow:0 2px 8px rgba(16,185,129,0.4); }
+.schwab-execute-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+.schwab-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); }
+.schwab-modal { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:24px; max-width:600px; width:90%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+.schwab-modal h3 { margin:0 0 16px; color:var(--text-primary); font-size:1.1rem; }
+.schwab-legs-table { width:100%; border-collapse:collapse; margin:12px 0; font-size:0.82rem; }
+.schwab-legs-table th { text-align:left; padding:6px 8px; color:var(--text-muted); border-bottom:1px solid var(--border); font-weight:600; }
+.schwab-legs-table td { padding:6px 8px; color:var(--text-primary); border-bottom:1px solid rgba(255,255,255,0.05); font-family:'JetBrains Mono',monospace; }
+.schwab-legs-table .sto { color:#10b981; } .schwab-legs-table .bto { color:#3b82f6; }
+.schwab-price-adjust { display:flex; align-items:center; gap:8px; margin:12px 0; }
+.schwab-price-adjust button { width:32px; height:32px; border-radius:6px; border:1px solid var(--border); background:var(--card-bg); color:var(--text-primary); font-weight:700; cursor:pointer; }
+.schwab-price-adjust input { width:80px; text-align:center; background:var(--card-bg); border:1px solid var(--border); border-radius:6px; padding:6px; color:var(--cyan); font-family:monospace; font-weight:700; }
+.schwab-modal-actions { display:flex; gap:10px; margin-top:16px; }
+.schwab-modal-actions button { flex:1; padding:10px; border-radius:8px; font-weight:700; font-size:0.9rem; cursor:pointer; border:none; }
+.schwab-submit-btn { background:linear-gradient(135deg,#059669,#10b981); color:#fff; }
+.schwab-submit-btn:hover { background:linear-gradient(135deg,#047857,#059669); }
+.schwab-cancel-btn { background:var(--card-bg); color:var(--text-muted); border:1px solid var(--border) !important; }
+.order-status-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:700; text-transform:uppercase; }
+.order-status-badge.pending { background:rgba(251,191,36,0.15); color:#fbbf24; }
+.order-status-badge.filled { background:rgba(16,185,129,0.15); color:#10b981; }
+.order-status-badge.rejected { background:rgba(239,68,68,0.15); color:#ef4444; }
+.order-status-badge.cancelled { background:rgba(148,163,184,0.15); color:#94a3b8; }
+.schwab-status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+.schwab-status-dot.connected { background:#10b981; box-shadow:0 0 6px rgba(16,185,129,0.5); }
+.schwab-status-dot.disconnected { background:#ef4444; }
 .signal-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .signal-card-header .strat-name { font-weight: 700; font-size: 0.85rem; color: var(--text-primary); }
 .signal-card-header .ticker-badge { background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; padding: 1px 7px; font-size: 0.72rem; font-weight: 600; color: var(--cyan); }
@@ -2843,6 +2871,31 @@ body {
     <div class="pt-disclaimer">
       ⚠️ SIMULATED PAPER TRADING — Uses Black-Scholes theoretical pricing on historical data. Real fills, slippage, commissions, and early assignment are not modeled. Not financial advice.
     </div>
+
+    <!-- Schwab Live Orders -->
+    <div id="schwabOrdersPanel" class="card" style="margin-top:20px;display:none;">
+      <div class="card-header" style="cursor:pointer;" onclick="document.getElementById('schwabOrdersBody').parentElement.parentElement.style.display=document.getElementById('schwabOrdersBody').parentElement.parentElement.style.display==='none'?'block':'none'">
+        <span class="card-title">📊 Schwab Live Orders</span>
+        <span id="schwabOrderCount" style="font-size:0.75rem;color:var(--text-muted);">0 orders</span>
+      </div>
+      <div style="padding:0;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:10px 12px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Time</th>
+              <th style="text-align:left;padding:10px 12px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Strategy</th>
+              <th style="text-align:left;padding:10px 12px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Ticker</th>
+              <th style="text-align:left;padding:10px 12px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Status</th>
+              <th style="text-align:right;padding:10px 12px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Price</th>
+              <th style="text-align:right;padding:10px 12px;color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Order ID</th>
+            </tr>
+          </thead>
+          <tbody id="schwabOrdersBody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No live orders yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- =========== CONNECTIONS TAB =========== -->
@@ -2909,6 +2962,50 @@ body {
           </div>
         </div>
       </div>
+
+      <!-- Schwab Broker Integration -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🏦 Schwab Broker</span>
+          <span id="schwabStatusDot" class="schwab-status-dot" style="background:var(--red);"></span>
+        </div>
+        <div style="padding:16px;" id="schwabSettingsBody">
+          <div id="schwabConfigSection">
+            <p style="color:var(--text-secondary);font-size:0.82rem;margin-bottom:12px;">Connect your Schwab brokerage account to execute trades directly from signals.</p>
+            <div style="margin-bottom:10px;">
+              <label style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;display:block;margin-bottom:4px;">App Key</label>
+              <input type="password" id="schwabAppKey" placeholder="Your Schwab App Key" style="width:100%;padding:8px 12px;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:12px;">
+              <label style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;display:block;margin-bottom:4px;">App Secret</label>
+              <input type="password" id="schwabAppSecret" placeholder="Your Schwab App Secret" style="width:100%;padding:8px 12px;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+              <button class="btn btn-blue" onclick="schwabSaveConfig()" style="flex:1;">Save Credentials</button>
+              <button class="btn" onclick="schwabConnect()" id="btnSchwabConnect" style="flex:1;background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Connect to Schwab</button>
+            </div>
+          </div>
+          <div id="schwabStatusSection" style="display:none;">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span style="color:var(--text-secondary);">Account</span>
+              <span style="color:var(--text-primary);font-weight:600;" id="schwabAcctDisplay">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span style="color:var(--text-secondary);">Buying Power</span>
+              <span style="color:var(--green);font-weight:600;" id="schwabBuyingPower">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span style="color:var(--text-secondary);">Token Expires</span>
+              <span style="color:var(--text-primary);font-weight:600;" id="schwabTokenExpiry">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;">
+              <span style="color:var(--text-secondary);">Status</span>
+              <span style="color:var(--green);font-weight:600;" id="schwabConnStatus">Connected</span>
+            </div>
+            <button class="btn" onclick="schwabDisconnect()" style="margin-top:12px;width:100%;background:transparent;color:var(--red);border:1px solid var(--red)33;padding:8px;border-radius:6px;cursor:pointer;font-size:0.82rem;">Disconnect</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2918,6 +3015,50 @@ body {
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3 id="modalTitle">Strategy Details</h3>
     <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Schwab Order Confirmation Modal -->
+<div class="schwab-modal-overlay" id="schwabOrderModal">
+  <div class="schwab-modal">
+    <h3 style="margin:0 0 4px 0;color:var(--text-primary);">📋 Confirm Order</h3>
+    <p id="schwabOrderSummary" style="color:var(--text-secondary);font-size:0.82rem;margin:0 0 16px 0;"></p>
+
+    <table class="schwab-legs-table" id="schwabLegsTable">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Option</th>
+          <th>Strike</th>
+          <th>Expiry</th>
+          <th>Qty</th>
+        </tr>
+      </thead>
+      <tbody id="schwabLegsBody"></tbody>
+    </table>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0;padding:12px;background:var(--bg-card-alt);border-radius:8px;">
+      <div>
+        <div style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;">Order Type</div>
+        <div id="schwabOrderType" style="color:var(--text-primary);font-weight:600;font-size:0.95rem;">NET CREDIT</div>
+      </div>
+      <div class="schwab-price-adjust">
+        <button onclick="schwabNudgePrice(-0.01)" style="background:var(--bg-card-alt);border:1px solid var(--border);color:var(--text-primary);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;">−</button>
+        <div style="text-align:center;min-width:80px;">
+          <div style="color:var(--text-muted);font-size:0.65rem;">LIMIT PRICE</div>
+          <div id="schwabLimitPrice" style="color:var(--green);font-weight:700;font-size:1.2rem;">$0.00</div>
+        </div>
+        <button onclick="schwabNudgePrice(0.01)" style="background:var(--bg-card-alt);border:1px solid var(--border);color:var(--text-primary);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;">+</button>
+      </div>
+    </div>
+
+    <div id="schwabOrderError" style="display:none;color:var(--red);font-size:0.82rem;margin-bottom:10px;padding:8px;background:rgba(239,68,68,0.1);border-radius:6px;"></div>
+    <div id="schwabOrderSuccess" style="display:none;color:var(--green);font-size:0.82rem;margin-bottom:10px;padding:8px;background:rgba(16,185,129,0.1);border-radius:6px;"></div>
+
+    <div class="schwab-modal-actions">
+      <button class="schwab-cancel-btn" onclick="schwabCloseModal()">Cancel</button>
+      <button class="schwab-submit-btn" id="schwabSubmitBtn" onclick="schwabConfirmOrder()">🚀 Submit Order</button>
+    </div>
   </div>
 </div>
 
@@ -3557,6 +3698,9 @@ if (!localStorage.getItem('apiKey_polygon')) {
 
 // Start live data on load
 setTimeout(initLiveData, 500);
+
+// Check Schwab connection on startup
+setTimeout(schwabCheckStatus, 1000);
 
 // ===== CONNECTION STATUS TAB =====
 function connRow(feed, source, status, data, latency) {
@@ -7041,6 +7185,7 @@ function ptFormatSignalCard(sig) {
       <div class="label">Allocation</div><div class="val">${sig.allocPct}% ($${sig.allocDollars.toLocaleString(undefined,{maximumFractionDigits:0})})</div>
     </div>
     <div class="signal-condition">✅ ${sig.conditionMet}</div>
+    ${SCHWAB.connected && sig._sigIndex !== undefined ? `<button class="schwab-execute-btn" onclick="schwabShowConfirmModal(${sig._sigIndex})">🏦 Execute on Schwab</button>` : ''}
   </div>`;
 }
 
@@ -7295,10 +7440,14 @@ async function ptGenerateSignals() {
       }
     }
 
-    // Render entries
-    const entriesEl = document.getElementById('ptSignalEntries');
+    // Store signals for Schwab execution
     const validEntries = entries.filter(e => !e.skip);
     const skippedEntries = entries.filter(e => e.skip);
+    const now = Date.now();
+    ptLastSignals = validEntries.map((sig, i) => { sig._sigIndex = i; sig._generatedAt = now; return sig; });
+
+    // Render entries
+    const entriesEl = document.getElementById('ptSignalEntries');
     entriesEl.innerHTML = validEntries.map(ptFormatSignalCard).join('') +
       (skippedEntries.length ? '<div style="grid-column:1/-1; margin-top:8px; font-size:0.75rem; color:var(--text-muted); font-weight:600;">Not Triggered:</div>' : '') +
       skippedEntries.map(ptFormatSignalCard).join('');
@@ -7364,6 +7513,287 @@ async function ptGenerateSignals() {
 
   btn.disabled = false; btn.textContent = '⚡ Generate Signals';
 }
+
+// ===== SCHWAB BROKER INTEGRATION =====
+const SCHWAB = { connected: false, accountId: null, buyingPower: 0, positions: [], pendingOrders: [], currentOrderSignal: null, currentLimitPrice: 0 };
+let ptLastSignals = [];
+
+async function schwabSaveConfig() {
+  const appKey = document.getElementById('schwabAppKey').value.trim();
+  const appSecret = document.getElementById('schwabAppSecret').value.trim();
+  if (!appKey || !appSecret) return alert('Both App Key and Secret are required');
+  try {
+    const r = await fetch('/schwab/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appKey, secret: appSecret }) });
+    const d = await r.json();
+    if (d.success) { document.getElementById('schwabAppKey').value = ''; document.getElementById('schwabAppSecret').value = ''; alert('Credentials saved securely on server'); }
+    else alert('Failed: ' + (d.error || 'Unknown'));
+  } catch(e) { alert('Server not running. Start with: npm start'); }
+}
+
+function schwabConnect() {
+  fetch('/schwab/auth-url').then(r => r.json()).then(d => {
+    if (d.error) return alert(d.error);
+    const popup = window.open(d.url, 'SchwabAuth', 'width=600,height=700');
+    const poll = setInterval(() => {
+      if (popup.closed) { clearInterval(poll); setTimeout(schwabCheckStatus, 1000); }
+    }, 500);
+  }).catch(() => alert('Server not running. Start with: npm start'));
+}
+
+async function schwabCheckStatus() {
+  try {
+    const r = await fetch('/schwab/status');
+    const d = await r.json();
+    SCHWAB.connected = d.connected;
+    const dot = document.getElementById('schwabStatusDot');
+    if (d.connected) {
+      SCHWAB.accountId = d.accountId;
+      dot.style.background = 'var(--green)';
+      document.getElementById('schwabConfigSection').style.display = 'none';
+      document.getElementById('schwabStatusSection').style.display = 'block';
+      document.getElementById('schwabAcctDisplay').textContent = d.accountId;
+      document.getElementById('schwabTokenExpiry').textContent = d.expiresIn > 0 ? Math.floor(d.expiresIn / 60) + ' min' : 'Expired';
+      document.getElementById('schwabConnStatus').textContent = 'Connected';
+      document.getElementById('schwabConnStatus').style.color = 'var(--green)';
+      document.getElementById('schwabOrdersPanel').style.display = 'block';
+      schwabFetchAccount();
+    } else {
+      dot.style.background = 'var(--red)';
+      document.getElementById('schwabConfigSection').style.display = 'block';
+      document.getElementById('schwabStatusSection').style.display = 'none';
+    }
+  } catch(e) { /* server not running */ }
+}
+
+async function schwabFetchAccount() {
+  try {
+    const r = await fetch('/schwab/accounts');
+    if (!r.ok) return;
+    const d = await r.json();
+    const acct = d.securitiesAccount || d;
+    const bp = acct.currentBalances?.buyingPower || acct.initialBalances?.buyingPower || 0;
+    SCHWAB.buyingPower = bp;
+    document.getElementById('schwabBuyingPower').textContent = '$' + bp.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  } catch(e) {}
+}
+
+async function schwabDisconnect() {
+  if (!confirm('Disconnect from Schwab?')) return;
+  await fetch('/schwab/disconnect', { method: 'POST' });
+  SCHWAB.connected = false;
+  schwabCheckStatus();
+}
+
+function schwabFormatOptionSymbol(ticker, expiry, type, strike) {
+  // Schwab format: "TICKER  YYMMDD C/P STRIKE*1000" padded to 6 chars
+  const padded = ticker.padEnd(6, ' ');
+  const d = new Date(expiry);
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const cp = type.toUpperCase() === 'CALL' ? 'C' : 'P';
+  const strikePart = String(Math.round(strike * 1000)).padStart(8, '0');
+  return `${padded}${yy}${mm}${dd}${cp}${strikePart}`;
+}
+
+function schwabBuildOrder(sig) {
+  const t = sig.trade;
+  const ticker = sig.ticker;
+  const expiry = sig.expiry;
+  const contracts = sig.contracts || 1;
+  const isCredit = !t.isDebit;
+  const legs = [];
+
+  // Build legs based on strategy type
+  if (t.type === 'iron_condor') {
+    legs.push({ instruction: 'SELL_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.shortPut), assetType: 'OPTION' } });
+    legs.push({ instruction: 'BUY_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.longPut), assetType: 'OPTION' } });
+    legs.push({ instruction: 'SELL_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'call', t.shortCall), assetType: 'OPTION' } });
+    legs.push({ instruction: 'BUY_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'call', t.longCall), assetType: 'OPTION' } });
+  } else if (t.type === 'put_credit_spread' || t.type === 'vertical') {
+    legs.push({ instruction: 'SELL_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.shortStrike || t.shortPut), assetType: 'OPTION' } });
+    legs.push({ instruction: 'BUY_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.longStrike || t.longPut), assetType: 'OPTION' } });
+  } else if (t.type === 'jade_lizard') {
+    legs.push({ instruction: 'SELL_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.shortPut), assetType: 'OPTION' } });
+    legs.push({ instruction: 'BUY_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.longPut), assetType: 'OPTION' } });
+    legs.push({ instruction: 'SELL_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'call', t.shortCall), assetType: 'OPTION' } });
+  } else if (t.type === 'naked_put') {
+    legs.push({ instruction: 'SELL_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.strike || t.shortPut || t.shortStrike), assetType: 'OPTION' } });
+  } else if (t.type === 'straddle') {
+    legs.push({ instruction: 'BUY_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'put', t.strike), assetType: 'OPTION' } });
+    legs.push({ instruction: 'BUY_TO_OPEN', quantity: contracts, instrument: { symbol: schwabFormatOptionSymbol(ticker, expiry, 'call', t.strike), assetType: 'OPTION' } });
+  }
+
+  // Complex order type
+  let complexType = 'VERTICAL';
+  if (t.type === 'iron_condor') complexType = 'IRON_CONDOR';
+  else if (t.type === 'jade_lizard') complexType = 'CUSTOM';
+  else if (t.type === 'naked_put') complexType = 'SINGLE';
+  else if (t.type === 'straddle') complexType = 'STRADDLE';
+
+  const price = isCredit ? t.credit : t.debit;
+
+  return {
+    orderType: 'NET_' + (isCredit ? 'CREDIT' : 'DEBIT'),
+    session: 'NORMAL',
+    duration: 'DAY',
+    complexOrderStrategyType: complexType,
+    price: Math.round(price * 100) / 100,
+    orderLegCollection: legs,
+    orderStrategyType: 'SINGLE'
+  };
+}
+
+function schwabShowConfirmModal(sigIndex) {
+  const sig = ptLastSignals[sigIndex];
+  if (!sig || sig.skip) return;
+
+  // Staleness check: signal must be < 5 minutes old
+  if (sig._generatedAt && (Date.now() - sig._generatedAt > 5 * 60000)) {
+    return alert('Signal is stale (>5 min old). Please regenerate signals first.');
+  }
+
+  SCHWAB.currentOrderSignal = sig;
+  const t = sig.trade;
+  const isCredit = !t.isDebit;
+  SCHWAB.currentLimitPrice = Math.round((isCredit ? t.credit : t.debit) * 100) / 100;
+
+  // Summary
+  document.getElementById('schwabOrderSummary').textContent = `${sig.stratName} on ${sig.ticker} — ${sig.contracts} contract${sig.contracts > 1 ? 's' : ''}`;
+
+  // Order type
+  document.getElementById('schwabOrderType').textContent = 'NET ' + (isCredit ? 'CREDIT' : 'DEBIT');
+
+  // Price
+  schwabUpdatePriceDisplay();
+
+  // Build legs table
+  const tbody = document.getElementById('schwabLegsBody');
+  const order = schwabBuildOrder(sig);
+  tbody.innerHTML = order.orderLegCollection.map(leg => {
+    const sym = leg.instrument.symbol.trim();
+    const action = leg.instruction.replace('_', ' ');
+    // Parse strike and expiry from symbol
+    const strikeVal = parseInt(sym.slice(-8)) / 1000;
+    const cpChar = sym.charAt(sym.length - 9);
+    return `<tr>
+      <td style="color:${leg.instruction.startsWith('SELL') ? 'var(--red)' : 'var(--green)'};font-weight:600;">${action}</td>
+      <td>${sig.ticker} ${cpChar === 'P' ? 'Put' : 'Call'}</td>
+      <td>$${strikeVal.toFixed(0)}</td>
+      <td>${sig.expiry}</td>
+      <td>${leg.quantity}</td>
+    </tr>`;
+  }).join('');
+
+  // Reset state
+  document.getElementById('schwabOrderError').style.display = 'none';
+  document.getElementById('schwabOrderSuccess').style.display = 'none';
+  document.getElementById('schwabSubmitBtn').disabled = false;
+  document.getElementById('schwabSubmitBtn').textContent = '🚀 Submit Order';
+
+  // Show modal
+  document.getElementById('schwabOrderModal').classList.add('show');
+}
+
+function schwabCloseModal() {
+  document.getElementById('schwabOrderModal').classList.remove('show');
+  SCHWAB.currentOrderSignal = null;
+}
+
+function schwabNudgePrice(delta) {
+  SCHWAB.currentLimitPrice = Math.max(0.01, Math.round((SCHWAB.currentLimitPrice + delta) * 100) / 100);
+  schwabUpdatePriceDisplay();
+}
+
+function schwabUpdatePriceDisplay() {
+  document.getElementById('schwabLimitPrice').textContent = '$' + SCHWAB.currentLimitPrice.toFixed(2);
+}
+
+async function schwabConfirmOrder() {
+  const sig = SCHWAB.currentOrderSignal;
+  if (!sig) return;
+
+  const btn = document.getElementById('schwabSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting...';
+  document.getElementById('schwabOrderError').style.display = 'none';
+
+  try {
+    const order = schwabBuildOrder(sig);
+    order.price = SCHWAB.currentLimitPrice;
+    const r = await fetch('/schwab/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(order) });
+    const d = await r.json();
+
+    if (r.ok && d.success) {
+      document.getElementById('schwabOrderSuccess').style.display = 'block';
+      document.getElementById('schwabOrderSuccess').textContent = `✅ Order submitted! ID: ${d.orderId || 'pending'}`;
+      btn.textContent = '✅ Submitted';
+      SCHWAB.pendingOrders.push({ orderId: d.orderId, sig, time: new Date(), status: 'PENDING' });
+      schwabRenderOrders();
+      setTimeout(schwabCloseModal, 2000);
+      schwabStartPolling();
+    } else {
+      throw new Error(d.message || d.error || JSON.stringify(d));
+    }
+  } catch(e) {
+    document.getElementById('schwabOrderError').style.display = 'block';
+    document.getElementById('schwabOrderError').textContent = '❌ ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '🚀 Submit Order';
+  }
+}
+
+function schwabRenderOrders() {
+  const tbody = document.getElementById('schwabOrdersBody');
+  const panel = document.getElementById('schwabOrdersPanel');
+  if (SCHWAB.pendingOrders.length === 0 && !SCHWAB.connected) { panel.style.display = 'none'; return; }
+  if (SCHWAB.connected) panel.style.display = 'block';
+
+  document.getElementById('schwabOrderCount').textContent = SCHWAB.pendingOrders.length + ' order' + (SCHWAB.pendingOrders.length !== 1 ? 's' : '');
+
+  if (SCHWAB.pendingOrders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">No live orders yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = SCHWAB.pendingOrders.map(o => {
+    const statusClass = o.status === 'FILLED' ? 'filled' : o.status === 'REJECTED' || o.status === 'CANCELED' ? 'rejected' : 'pending';
+    return `<tr>
+      <td style="padding:10px 12px;font-size:0.82rem;color:var(--text-secondary);">${o.time.toLocaleTimeString()}</td>
+      <td style="padding:10px 12px;font-size:0.82rem;">${o.sig.stratName}</td>
+      <td style="padding:10px 12px;"><span class="ticker-badge">${o.sig.ticker}</span></td>
+      <td style="padding:10px 12px;"><span class="order-status-badge ${statusClass}">${o.status}</span></td>
+      <td style="padding:10px 12px;text-align:right;font-size:0.82rem;">$${SCHWAB.currentLimitPrice.toFixed(2)}</td>
+      <td style="padding:10px 12px;text-align:right;font-size:0.78rem;color:var(--text-muted);">${o.orderId || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+let _schwabPollTimer = null;
+function schwabStartPolling() {
+  if (_schwabPollTimer) return;
+  _schwabPollTimer = setInterval(schwabPollOrders, 10000);
+}
+
+async function schwabPollOrders() {
+  const pending = SCHWAB.pendingOrders.filter(o => o.status === 'PENDING' || o.status === 'QUEUED' || o.status === 'WORKING');
+  if (pending.length === 0) { clearInterval(_schwabPollTimer); _schwabPollTimer = null; return; }
+
+  for (const o of pending) {
+    if (!o.orderId) continue;
+    try {
+      const r = await fetch(`/schwab/orders/${o.orderId}`);
+      if (r.ok) {
+        const d = await r.json();
+        o.status = d.status || o.status;
+        if (d.filledQuantity > 0) o.fillPrice = d.price;
+      }
+    } catch(e) {}
+  }
+  schwabRenderOrders();
+}
+
+// ===== END SCHWAB MODULE =====
 
 function ptInit() {
   ptRenderAll();

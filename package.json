@@ -1,0 +1,13 @@
+{
+  "name": "options-trading-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Options trading dashboard with Schwab broker integration",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "axios": "^1.7.0"
+  }
+}

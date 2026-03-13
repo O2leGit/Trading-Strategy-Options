@@ -4,9 +4,8 @@
     {
       "name": "options-dashboard",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Users/Chris/AppData/Roaming/npm/node_modules/serve/build/main.js"],
-      "port": 3847,
-      "autoPort": true
+      "runtimeArgs": ["server.js"],
+      "port": 3847
     }
   ]
 }
