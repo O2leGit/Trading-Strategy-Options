@@ -1,4 +1,5 @@
 const express = require('express');
+const https = require('https');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ const CONFIG_FILE = path.join(__dirname, 'schwab_config.json');
 const TOKENS_FILE = path.join(__dirname, 'schwab_tokens.json');
 const SCHWAB_AUTH_BASE = 'https://api.schwabapi.com/v1/oauth';
 const SCHWAB_API_BASE = 'https://api.schwabapi.com';
-const REDIRECT_URI = `http://localhost:${PORT}/callback`;
+const REDIRECT_URI = `https://127.0.0.1:${PORT}/callback`;
 
 // ─── Token Storage ──────────────────────────────────────────────
 
@@ -247,11 +248,16 @@ app.get('/schwab/orders/:orderId', requireAuth, async (req, res) => {
 
 // ─── Start ──────────────────────────────────────────────────────
 
-app.listen(PORT, async () => {
+const sslOptions = {
+  key: fs.readFileSync(path.join(__dirname, 'server-key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, 'server-cert.pem'))
+};
+
+https.createServer(sslOptions, app).listen(PORT, async () => {
   console.log(`\n  Options Trading Dashboard`);
   console.log(`  ────────────────────────`);
-  console.log(`  Dashboard:  http://localhost:${PORT}`);
-  console.log(`  Schwab CB:  http://localhost:${PORT}/callback\n`);
+  console.log(`  Dashboard:  https://127.0.0.1:${PORT}`);
+  console.log(`  Schwab CB:  https://127.0.0.1:${PORT}/callback\n`);
 
   // Try to refresh token on startup
   const tokens = loadTokens();

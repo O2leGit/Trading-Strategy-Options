@@ -1,3 +1,5 @@
 node_modules/
 schwab_tokens.json
 schwab_config.json
+server-cert.pem
+server-key.pem
