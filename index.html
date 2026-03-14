@@ -2981,9 +2981,16 @@ body {
               <label style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;display:block;margin-bottom:4px;">App Secret</label>
               <input type="password" id="schwabAppSecret" placeholder="Your Schwab App Secret" style="width:100%;padding:8px 12px;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:0.85rem;box-sizing:border-box;">
             </div>
-            <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
               <button class="btn btn-blue" onclick="schwabSaveConfig()" style="flex:1;">Save Credentials</button>
               <button class="btn" onclick="schwabConnect()" id="btnSchwabConnect" style="flex:1;background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Connect to Schwab</button>
+            </div>
+            <button class="btn" onclick="schwabConnect(true)" style="width:100%;margin-bottom:12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);padding:6px;border-radius:6px;cursor:pointer;font-size:0.75rem;">Alt Connect (use if redirect fails)</button>
+            <div id="schwabManualCode" style="display:none;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;">
+              <p style="color:var(--cyan);font-size:0.8rem;font-weight:600;margin-bottom:8px;">📋 Paste Authorization Code</p>
+              <p style="color:var(--text-secondary);font-size:0.75rem;margin-bottom:8px;">After authorizing on Schwab, copy the <strong style="color:var(--text-primary);">full URL</strong> from the browser address bar and paste it below:</p>
+              <input type="text" id="schwabManualCodeInput" placeholder="Paste the full callback URL here..." style="width:100%;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:0.82rem;box-sizing:border-box;margin-bottom:8px;">
+              <button class="btn" onclick="schwabSubmitManualCode()" style="width:100%;background:var(--green);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Submit Code</button>
             </div>
           </div>
           <div id="schwabStatusSection" style="display:none;">
@@ -7531,14 +7538,47 @@ async function schwabSaveConfig() {
   } catch(e) { alert('Server not running. Start with: npm start'); }
 }
 
-function schwabConnect() {
-  fetch('/schwab/auth-url').then(r => r.json()).then(d => {
+function schwabConnect(alt) {
+  fetch('/schwab/auth-url' + (alt ? '?alt=1' : '')).then(r => r.json()).then(d => {
     if (d.error) return alert(d.error);
-    const popup = window.open(d.url, 'SchwabAuth', 'width=600,height=700');
-    const poll = setInterval(() => {
-      if (popup.closed) { clearInterval(poll); setTimeout(schwabCheckStatus, 1000); }
-    }, 500);
+    // Open in new tab — popup redirect gets blocked by self-signed cert
+    window.open(d.url, '_blank');
+    // Show manual code paste section
+    document.getElementById('schwabManualCode').style.display = 'block';
+    // Also poll for auto-detection in case redirect works
+    const pollStatus = setInterval(async () => {
+      try {
+        const r = await fetch('/schwab/status');
+        const s = await r.json();
+        if (s.connected) { clearInterval(pollStatus); schwabCheckStatus(); document.getElementById('schwabManualCode').style.display = 'none'; }
+      } catch {}
+    }, 2000);
+    // Stop polling after 5 minutes
+    setTimeout(() => clearInterval(pollStatus), 300000);
   }).catch(() => alert('Server not running. Start with: npm start'));
+}
+
+async function schwabSubmitManualCode() {
+  const input = document.getElementById('schwabManualCodeInput').value.trim();
+  if (!input) return alert('Please paste the URL or code');
+  // Extract code from URL or use raw input
+  let code = input;
+  try {
+    const url = new URL(input);
+    code = url.searchParams.get('code') || input;
+  } catch { /* not a URL, use as-is */ }
+  if (!code) return alert('Could not find authorization code in the input');
+  try {
+    const r = await fetch('/schwab/manual-callback?code=' + encodeURIComponent(code));
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('schwabManualCode').style.display = 'none';
+      document.getElementById('schwabManualCodeInput').value = '';
+      schwabCheckStatus();
+    } else {
+      alert('Failed: ' + (d.error || 'Unknown error'));
+    }
+  } catch(e) { alert('Server error: ' + e.message); }
 }
 
 async function schwabCheckStatus() {

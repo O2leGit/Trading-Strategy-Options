@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Market Briefing</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d28; --border: #2a2d3a;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #3b82f6;
+    --green: #10b981; --red: #ef4444; --yellow: #f59e0b; --orange: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.6; }
+
+  .header {
+    background: linear-gradient(135deg, #1a1d28 0%, #0f1117 100%);
+    border-bottom: 1px solid var(--border); padding: 24px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header h1 { font-size: 1.5rem; font-weight: 600; }
+  .header h1 span { color: var(--accent); }
+  .header .date { color: var(--muted); font-size: 0.9rem; }
+  .header .refresh-badge {
+    background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 12px; font-size: 0.8rem; color: var(--muted);
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  .regime-banner {
+    border-radius: 12px; padding: 20px 28px; margin-bottom: 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid var(--border);
+  }
+  .regime-banner.low { background: linear-gradient(135deg, #064e3b22, #0f1117); border-color: #10b98144; }
+  .regime-banner.normal { background: linear-gradient(135deg, #1e3a5f22, #0f1117); border-color: #3b82f644; }
+  .regime-banner.elevated { background: linear-gradient(135deg, #78350f22, #0f1117); border-color: #f59e0b44; }
+  .regime-banner.crisis { background: linear-gradient(135deg, #7f1d1d22, #0f1117); border-color: #ef444444; }
+  .regime-label { font-size: 1.1rem; font-weight: 600; }
+  .regime-detail { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+  .regime-stats { text-align: right; }
+  .regime-stats .stat { font-size: 0.85rem; color: var(--muted); }
+  .regime-stats .stat strong { color: var(--text); }
+
+  .grid { display: grid; gap: 16px; margin-bottom: 24px; }
+  .grid-6 { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; position: relative; overflow: hidden;
+  }
+  .card-title { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card-value { font-size: 1.6rem; font-weight: 700; }
+  .card-change { font-size: 0.9rem; margin-top: 4px; }
+  .card-change.up { color: var(--green); }
+  .card-change.down { color: var(--red); }
+
+  .section-title {
+    font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* Sector heatmap */
+  .sector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .sector-cell {
+    border-radius: 8px; padding: 12px 10px; text-align: center;
+    font-weight: 600; font-size: 0.85rem; border: 1px solid transparent;
+  }
+  .sector-cell .pct { font-size: 1rem; margin-top: 4px; }
+
+  /* News */
+  .news-item {
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .news-item:last-child { border-bottom: none; }
+  .news-time { color: var(--muted); font-size: 0.75rem; min-width: 60px; padding-top: 2px; }
+  .news-content h3 { font-size: 0.95rem; font-weight: 500; margin-bottom: 4px; }
+  .news-content h3 a { color: var(--text); text-decoration: none; }
+  .news-content h3 a:hover { color: var(--accent); }
+  .news-content p { color: var(--muted); font-size: 0.82rem; }
+  .news-source { color: var(--accent); font-size: 0.75rem; font-weight: 500; }
+
+  /* Expected moves */
+  .em-row { display: flex; gap: 16px; }
+  .em-item {
+    flex: 1; background: #1e2130; border-radius: 8px; padding: 14px; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .em-label { color: var(--muted); font-size: 0.8rem; margin-bottom: 6px; }
+  .em-value { font-size: 1.3rem; font-weight: 700; color: var(--yellow); }
+  .em-pct { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+
+  .loading { text-align: center; padding: 60px; color: var(--muted); }
+  .loading .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.75rem; border-top: 1px solid var(--border); margin-top: 32px; }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 8px; text-align: center; }
+    .regime-banner { flex-direction: column; text-align: center; gap: 12px; }
+    .regime-stats { text-align: center; }
+    .em-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1><span>Daily</span> Market Briefing</h1>
+    <div class="date" id="briefingDate">Loading...</div>
+  </div>
+  <div class="refresh-badge" id="refreshBadge">--</div>
+</div>
+
+<div class="container" id="content">
+  <div class="loading"><div class="spinner"></div><p style="margin-top:16px;">Loading market data...</p></div>
+</div>
+
+<div class="footer">
+  Market data is informational only and not investment advice. Data refreshed daily.
+</div>
+
+<script>
+async function loadSnapshot() {
+  try {
+    const res = await fetch('/clients/api/snapshot');
+    if (!res.ok) throw new Error('No snapshot');
+    const data = await res.json();
+    render(data);
+  } catch {
+    document.getElementById('content').innerHTML = `
+      <div class="loading" style="padding:80px">
+        <p style="font-size:1.2rem; color: var(--text); margin-bottom:8px;">No briefing available yet</p>
+        <p>The daily market snapshot hasn't been generated. Check back soon.</p>
+      </div>`;
+  }
+}
+
+function render(d) {
+  const dt = new Date(d.generatedAt);
+  document.getElementById('briefingDate').textContent = dt.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('refreshBadge').textContent = 'Updated ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  const m = d.market;
+  const r = d.regime || {};
+
+  // Regime class
+  const regimeClass = (r.level || '').toLowerCase().includes('crisis') ? 'crisis'
+    : (r.level || '').toLowerCase().includes('elevated') ? 'elevated'
+    : (r.level || '').toLowerCase().includes('low') ? 'low' : 'normal';
+
+  const regimeDesc = {
+    low: 'Markets are calm. Low volatility favors selling premium and trend-following strategies.',
+    normal: 'Markets are in a typical volatility range. Standard strategies apply with normal position sizing.',
+    elevated: 'Volatility is elevated. Consider reducing position sizes and widening strikes.',
+    crisis: 'High volatility environment. Defensive positioning recommended. Reduce exposure.'
+  };
+
+  let html = '';
+
+  // Regime banner
+  html += `<div class="regime-banner ${regimeClass}">
+    <div>
+      <div class="regime-label">Market Regime: ${r.level || 'Unknown'}</div>
+      <div class="regime-detail">${regimeDesc[regimeClass] || ''}</div>
+    </div>
+    <div class="regime-stats">
+      <div class="stat">IV Rank: <strong>${r.ivRank ?? '--'}%</strong></div>
+      <div class="stat">VIX: <strong>${r.vix?.toFixed(2) ?? '--'}</strong></div>
+    </div>
+  </div>`;
+
+  // Market cards
+  const marketLabels = { spx: 'S&P 500', vix: 'VIX', dow: 'Dow Jones', nasdaq: 'Nasdaq', oil: 'Crude Oil', treasury: '10Y Treasury' };
+  html += `<div class="grid grid-6">`;
+  for (const [key, label] of Object.entries(marketLabels)) {
+    const item = m[key];
+    if (!item) continue;
+    const dir = parseFloat(item.changePct) >= 0 ? 'up' : 'down';
+    const arrow = dir === 'up' ? '+' : '';
+    html += `<div class="card">
+      <div class="card-title">${label}</div>
+      <div class="card-value">${Number(item.price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+      <div class="card-change ${dir}">${arrow}${item.changePct}%</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Expected moves
+  if (r.expectedMove1d) {
+    const spxPrice = m.spx?.price || 5000;
+    html += `<div class="section-title">Expected Moves (SPX)</div>
+    <div class="em-row" style="margin-bottom:24px">
+      <div class="em-item">
+        <div class="em-label">1 Day</div>
+        <div class="em-value">&plusmn;${r.expectedMove1d} pts</div>
+        <div class="em-pct">&plusmn;${(r.expectedMove1d / spxPrice * 100).toFixed(2)}%</div>
+      </div>
+      <div class="em-item">
+        <div class="em-label">1 Week</div>
+        <div class="em-value">&plusmn;${r.expectedMove1w} pts</div>
+        <div class="em-pct">&plusmn;${(r.expectedMove1w / spxPrice * 100).toFixed(2)}%</div>
+      </div>
+    </div>`;
+  }
+
+  // Sector heatmap
+  if (d.sectors && Object.keys(d.sectors).length > 0) {
+    const sectorNames = {
+      XLE:'Energy', XLK:'Tech', XLF:'Financials', XLV:'Healthcare', XLU:'Utilities',
+      XLY:'Consumer Disc', XLP:'Consumer Staples', XLI:'Industrials', XLB:'Materials',
+      XLRE:'Real Estate', IWM:'Small Caps', QQQ:'Nasdaq 100'
+    };
+    html += `<div class="section-title">Sector Performance</div><div class="sector-grid" style="margin-bottom:24px">`;
+    for (const [sym, info] of Object.entries(d.sectors)) {
+      const pct = parseFloat(info.changePct);
+      const bg = pct >= 1.5 ? '#10b98133' : pct >= 0.5 ? '#10b98122' : pct >= 0 ? '#10b98111'
+        : pct >= -0.5 ? '#ef444411' : pct >= -1.5 ? '#ef444422' : '#ef444433';
+      const color = pct >= 0 ? 'var(--green)' : 'var(--red)';
+      html += `<div class="sector-cell" style="background:${bg}">
+        <div>${sectorNames[sym] || sym}</div>
+        <div class="pct" style="color:${color}">${pct >= 0 ? '+' : ''}${pct}%</div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // News
+  if (d.news && d.news.length > 0) {
+    html += `<div class="section-title">Market News</div><div class="card" style="margin-bottom:24px">`;
+    for (const n of d.news) {
+      const time = n.datetime ? new Date(n.datetime * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+      html += `<div class="news-item">
+        <div class="news-time">${time}</div>
+        <div class="news-content">
+          <h3><a href="${n.url}" target="_blank" rel="noopener">${n.headline}</a></h3>
+          <span class="news-source">${n.source || ''}</span>
+          ${n.summary ? `<p>${n.summary}</p>` : ''}
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+loadSnapshot();
+// Auto-refresh every 5 minutes
+setInterval(loadSnapshot, 5 * 60 * 1000);
+</script>
+</body>
+</html>
