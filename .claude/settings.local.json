@@ -51,7 +51,20 @@
       "Bash(unzip -o \"C:/Users/Chris/Downloads/ikigai-os-website-v2.zip\")",
       "Bash(cp -rf ikigai-os-live/* .)",
       "Bash(rm -rf ikigai-os-live)",
-      "Bash(pnpm install:*)"
+      "Bash(pnpm install:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)",
+      "Bash(where serve:*)",
+      "Bash(npm run:*)",
+      "Bash(ls C:/Users/Chris/Downloads/*headshot* C:/Users/Chris/Downloads/*chris* C:/Users/Chris/Downloads/*otoole* C:/Users/Chris/Downloads/*ikigai*)",
+      "Bash(node -e \"const crypto = require\\(''crypto''\\); console.log\\(crypto.createHash\\(''sha256''\\).update\\(''ikigai2026!''\\).digest\\(''hex''\\)\\);\")",
+      "Bash(where netlify:*)",
+      "Bash(npx tsc:*)",
+      "Bash(nslookup ikigaios.com)",
+      "Bash(nslookup www.ikigaios.com)",
+      "Bash(nslookup -type=NS ikigaios.com)",
+      "Bash(nslookup -type=NS ikigaios.com 8.8.8.8)",
+      "Bash(nslookup ikigaios.com 8.8.8.8)"
     ]
   }
 }

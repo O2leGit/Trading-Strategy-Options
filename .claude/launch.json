@@ -6,6 +6,18 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
       "port": 3847
+    },
+    {
+      "name": "ikigaios-website",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/Chris/AppData/Roaming/npm/node_modules/serve/build/main.js", "C:/Users/Chris/Documents/ikigaios-website", "--listen", "3001", "--no-clipboard"],
+      "port": 3001
+    },
+    {
+      "name": "ikigai-dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/Chris/AppData/Roaming/npm/node_modules/serve/build/main.js", "C:/Users/Chris/Documents/ikigai-trade-os/dist/public", "--listen", "3900", "--no-clipboard", "--single"],
+      "port": 3900
     }
   ]
 }
