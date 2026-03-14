@@ -558,7 +558,8 @@ body {
 .schwab-execute-btn { width:100%; margin-top:10px; padding:8px 12px; background:linear-gradient(135deg,#059669,#10b981); color:#fff; border:none; border-radius:6px; font-weight:700; font-size:0.82rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.2s; }
 .schwab-execute-btn:hover { background:linear-gradient(135deg,#047857,#059669); transform:translateY(-1px); box-shadow:0 2px 8px rgba(16,185,129,0.4); }
 .schwab-execute-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
-.schwab-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); }
+.schwab-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(4px); }
+.schwab-modal-overlay.show { display:flex; }
 .schwab-modal { background:var(--card-bg); border:1px solid var(--border); border-radius:12px; padding:24px; max-width:600px; width:90%; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
 .schwab-modal h3 { margin:0 0 16px; color:var(--text-primary); font-size:1.1rem; }
 .schwab-legs-table { width:100%; border-collapse:collapse; margin:12px 0; font-size:0.82rem; }
