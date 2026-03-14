@@ -44,7 +44,14 @@
       "Bash(unzip -o \"C:/Users/Chris/Downloads/ikigai-os-website.zip\")",
       "Bash(cp -rf ikigai-os-website/* .)",
       "Bash(rm -rf ikigai-os-website)",
-      "Bash(npx serve:*)"
+      "Bash(npx serve:*)",
+      "Bash(unzip -l \"C:/Users/Chris/Downloads/ikigai-os-website-v2.zip\")",
+      "Bash(rm -f *.html *.xml robots.txt netlify.toml package.json README.md)",
+      "Bash(rm -rf css js assets)",
+      "Bash(unzip -o \"C:/Users/Chris/Downloads/ikigai-os-website-v2.zip\")",
+      "Bash(cp -rf ikigai-os-live/* .)",
+      "Bash(rm -rf ikigai-os-live)",
+      "Bash(pnpm install:*)"
     ]
   }
 }
