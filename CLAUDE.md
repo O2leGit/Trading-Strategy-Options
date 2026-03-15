@@ -6,7 +6,7 @@ Single-page options trading dashboard (`index.html`) — dark-themed, no framewo
 ## File Structure
 - `index.html` — Entire frontend application (~8,600 lines). All HTML, CSS, and JS in one file.
 - `server.js` — Express backend (~600 lines). API proxies, Schwab OAuth, password protection, cloud/local dual mode.
-- `package.json` — Dependencies: express, axios. Node >=18.
+- `package.json` — Dependencies: express, axios, @anthropic-ai/sdk, pdfkit. Node >=18.
 - `schwab_config.json` — Schwab OAuth credentials (gitignored)
 - `schwab_tokens.json` — Schwab OAuth tokens (gitignored)
 - `server-cert.pem` / `server-key.pem` — Self-signed SSL certs for local HTTPS (gitignored)
@@ -23,7 +23,7 @@ Single-page options trading dashboard (`index.html`) — dark-themed, no framewo
 - **Password**: Set via `SITE_PASSWORD` env var, cookie-based session (`auth=granted`)
 - **SSL**: Railway handles SSL termination (app runs plain HTTP internally)
 
-### Railway Environment Variables (9 total)
+### Railway Environment Variables (10 total)
 - `NODE_ENV` = production
 - `SITE_PASSWORD` — Dashboard login password
 - `SCHWAB_APP_KEY` — Schwab OAuth app key
@@ -33,6 +33,7 @@ Single-page options trading dashboard (`index.html`) — dark-themed, no framewo
 - `TWELVE_DATA_KEY` — Twelve Data API key (800 calls/day free)
 - `POLYGON_KEY` — Polygon.io API key (5 calls/min free)
 - `ALPHA_VANTAGE_KEY` — Alpha Vantage API key (25 calls/day free)
+- `ANTHROPIC_API_KEY` — Anthropic API key for Claude AI market summary generation
 
 ### Local Development
 - Run `node server.js` — auto-detects local mode (HTTPS with self-signed certs on port 3847)
@@ -84,6 +85,8 @@ All proxies bypass CORS issues and inject API keys from env vars:
 - `/api/yahoo/options/:symbol` — Yahoo Finance options proxy (legacy, v7 is dead)
 - `/api/polygon/*` — Polygon.io proxy with 5-minute cache
 - `/api/alpha/*` — Alpha Vantage proxy with 10-minute cache
+- `/api/ai-summary` (POST) — Claude API market intelligence brief with 15-minute cache
+- `/api/generate-report` (POST) — PDF daily report generator (returns PDF blob)
 
 ### API Key Management
 - Server provides keys via `/api/keys` endpoint (from Railway env vars)

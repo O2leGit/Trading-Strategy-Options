@@ -831,6 +831,30 @@ body {
       </div>
     </div>
 
+    <!-- AI Market Intelligence Brief -->
+    <div class="card" id="aiBriefCard" style="border:1px solid var(--cyan); margin-bottom:20px; position:relative;">
+      <div class="card-header">
+        <span class="card-title" style="color:var(--cyan);">AI Market Intelligence Brief</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="aiBriefTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
+          <button class="quick-btn" id="aiBriefDownloadBtn" onclick="downloadDailyReport()" style="padding:4px 14px; font-size:0.78rem; display:none;" title="Download full daily report as PDF">Download PDF</button>
+          <button class="quick-btn" id="aiBriefBtn" onclick="generateAISummary()" style="padding:4px 14px; font-size:0.78rem;">Generate Brief</button>
+        </div>
+      </div>
+      <div id="aiBriefContent" style="padding:4px 0;">
+        <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
+          Click "Generate Brief" to create an AI-powered market intelligence report using all live data signals (VVIX, GEX, VRP, flow, technicals, sentiment).
+        </div>
+      </div>
+      <div id="aiBriefLoading" style="display:none; padding:40px; text-align:center;">
+        <div style="color:var(--cyan); font-size:0.9rem; font-weight:600;">Generating AI Market Brief...</div>
+        <div style="color:var(--text-muted); font-size:0.78rem; margin-top:8px;">Claude is analyzing all market signals</div>
+        <div style="margin-top:12px; height:3px; background:var(--border); border-radius:2px; overflow:hidden;">
+          <div style="height:100%; width:60%; background:var(--cyan); border-radius:2px; animation: pulse 1.5s ease-in-out infinite;"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="grid-2">
       <div class="card">
         <div class="card-header">
@@ -4642,6 +4666,200 @@ function connectFinnhubWS() {
     finnhubWS.onclose = () => { finnhubWS = null; };
   } catch (e) {
     console.warn('Finnhub WS failed:', e);
+  }
+}
+
+// ===== AI MARKET INTELLIGENCE BRIEF =====
+let _lastAISummary = null;
+
+function gatherMarketDataForAI() {
+  // Gather all signals for the AI prompt
+  const spy = typeof OPTIONS_CACHE !== 'undefined' ? OPTIONS_CACHE['SPY'] : null;
+  let gexData = {};
+  if (spy && spy.contracts && spy.contracts.length > 0) {
+    const spotPrice = MARKET.spx > 0 ? MARKET.spx / 10 : spy.underlying || 550;
+    gexData = calculateGEX(spy.contracts, spotPrice) || {};
+  }
+
+  // Gather unusual flow
+  const allUnusual = [];
+  if (typeof OPTIONS_CACHE !== 'undefined') {
+    Object.entries(OPTIONS_CACHE).forEach(([sym, data]) => {
+      if (data && data.contracts) {
+        allUnusual.push(...scanUnusualFlow(data.contracts, sym));
+      }
+    });
+  }
+  allUnusual.sort((a, b) => b.premium - a.premium);
+  const topFlows = allUnusual.slice(0, 5);
+  const topFlowStr = topFlows.length > 0
+    ? topFlows.map(f => f.symbol + ' ' + f.type.toUpperCase() + ' $' + f.strike + ' ' + f.signal + ' ($' + (f.premium/1000).toFixed(0) + 'K)').join('; ')
+    : 'None detected';
+
+  // Gather sector data
+  const sectorEl = document.getElementById('sectorHeatMap');
+  const sectorText = sectorEl ? sectorEl.innerText.replace(/\n+/g, ', ').substring(0, 400) : 'N/A';
+
+  // Gather top trades text
+  const topTradesEl = document.getElementById('topTradesContainer');
+  const topTradesText = topTradesEl ? topTradesEl.innerText.substring(0, 600) : 'N/A';
+
+  // Sentiment
+  const sentText = MARKET.sentiment && MARKET.sentiment.label
+    ? MARKET.sentiment.label + ' (score: ' + MARKET.sentiment.score + ')'
+    : 'N/A';
+
+  return {
+    spx: MARKET.spx, spxChange: MARKET.spxChange,
+    spxChangePct: MARKET.spx && MARKET.spxPrevClose ? ((MARKET.spxChange / MARKET.spxPrevClose) * 100).toFixed(2) : 0,
+    dow: MARKET.dow, dowChangePct: MARKET.dow && MARKET.dowPrevClose ? ((MARKET.dowChange / MARKET.dowPrevClose) * 100).toFixed(2) : 0,
+    nasdaq: MARKET.nasdaq, nasdaqChangePct: MARKET.nasdaq && MARKET.nasdaqPrevClose ? ((MARKET.nasdaqChange / MARKET.nasdaqPrevClose) * 100).toFixed(2) : 0,
+    vix: MARKET.vix, vixChange: MARKET.vixChange,
+    vvix: MARKET.vvix, vvixChange: MARKET.vvixChange,
+    vvixVixRatio: MARKET.vvixVixRatio ? MARKET.vvixVixRatio.toFixed(2) : 'N/A',
+    vvixSignal: MARKET.vvixSignal || 'N/A',
+    oil: MARKET.oil, oilChange: MARKET.oilChange,
+    treasury: MARKET.treasury10y, tsyChange: MARKET.tsyChange,
+    regime: MARKET.regime, ivRank: MARKET.ivRank,
+    realizedVol: MARKET.realizedVol20d ? MARKET.realizedVol20d.toFixed(1) : 'N/A',
+    vrp: MARKET.vrp ? MARKET.vrp.toFixed(1) : 'N/A',
+    expectedMove1d: MARKET.spx && MARKET.vix ? (MARKET.spx * (MARKET.vix / 100) * Math.sqrt(1 / 365)).toFixed(1) : 'N/A',
+    expectedMove1w: MARKET.spx && MARKET.vix ? (MARKET.spx * (MARKET.vix / 100) * Math.sqrt(5 / 365)).toFixed(1) : 'N/A',
+    expectedMoveAccuracy: MARKET.expectedMoveAccuracy ? MARKET.expectedMoveAccuracy.toFixed(0) : 'N/A',
+    gexRegime: gexData.isPositive !== undefined ? (gexData.isPositive ? 'POSITIVE (mean-reverting)' : 'NEGATIVE (trending)') : 'N/A',
+    callWall: gexData.callWall ? '$' + gexData.callWall : 'N/A',
+    putWall: gexData.putWall ? '$' + gexData.putWall : 'N/A',
+    volTrigger: gexData.volTrigger ? '$' + gexData.volTrigger : 'N/A',
+    unusualFlowCount: allUnusual.length,
+    topFlow: topFlowStr,
+    rsi: MARKET.technicals.rsi ? MARKET.technicals.rsi.toFixed(1) : 'N/A',
+    macd: MARKET.technicals.macd ? MARKET.technicals.macd.toFixed(2) : 'N/A',
+    macdSignal: MARKET.technicals.macdSignal ? MARKET.technicals.macdSignal.toFixed(2) : 'N/A',
+    bollingerPosition: MARKET.technicals.bbUpper ? 'Upper: ' + MARKET.technicals.bbUpper.toFixed(0) + ' / Mid: ' + MARKET.technicals.bbMiddle.toFixed(0) + ' / Lower: ' + MARKET.technicals.bbLower.toFixed(0) : 'N/A',
+    sectors: sectorText,
+    sentiment: sentText,
+    topTrades: topTradesText
+  };
+}
+
+async function generateAISummary() {
+  const btn = document.getElementById('aiBriefBtn');
+  const content = document.getElementById('aiBriefContent');
+  const loading = document.getElementById('aiBriefLoading');
+  const downloadBtn = document.getElementById('aiBriefDownloadBtn');
+  const timeEl = document.getElementById('aiBriefTime');
+
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  content.style.display = 'none';
+  loading.style.display = 'block';
+
+  try {
+    const mktData = gatherMarketDataForAI();
+    const resp = await fetch('/api/ai-summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mktData)
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error || 'Failed to generate summary');
+    }
+
+    const result = await resp.json();
+    _lastAISummary = result.summary;
+
+    // Render the markdown-ish summary as styled HTML
+    const html = renderAISummary(result.summary);
+    content.innerHTML = html;
+    content.style.display = 'block';
+    loading.style.display = 'none';
+    downloadBtn.style.display = 'inline-block';
+
+    const genTime = new Date(result.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    timeEl.textContent = 'Generated ' + genTime;
+
+    btn.textContent = 'Refresh Brief';
+    btn.disabled = false;
+  } catch (e) {
+    content.innerHTML = '<div style="color:var(--red); padding:20px; text-align:center;">' +
+      '<div style="font-weight:600;">Failed to generate AI brief</div>' +
+      '<div style="font-size:0.78rem; margin-top:6px; color:var(--text-muted);">' + e.message + '</div>' +
+      '<div style="font-size:0.72rem; margin-top:8px; color:var(--text-muted);">Ensure ANTHROPIC_API_KEY is set in Railway env vars.</div></div>';
+    content.style.display = 'block';
+    loading.style.display = 'none';
+    btn.textContent = 'Retry';
+    btn.disabled = false;
+  }
+}
+
+function renderAISummary(text) {
+  const lines = text.split('\n');
+  let html = '<div style="padding:8px 12px; font-size:0.84rem; line-height:1.7;">';
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { html += '<div style="height:6px;"></div>'; continue; }
+
+    // Section headers: **1. MARKET PULSE** or ## MARKET PULSE
+    const hMatch = trimmed.match(/^(?:\*\*)?(?:\d+\.\s*)?(.+?)(?:\*\*)?$/);
+    const isBold = trimmed.startsWith('**') && trimmed.endsWith('**');
+    const isH2 = trimmed.startsWith('## ') || trimmed.startsWith('# ');
+
+    if (isBold || isH2) {
+      const headerText = trimmed.replace(/^[#*\d.\s]+/, '').replace(/\*+$/g, '');
+      const isAction = headerText.includes('ACTIONABLE') || headerText.includes('BOTTOM LINE');
+      const color = isAction ? 'var(--orange)' : 'var(--cyan)';
+      html += '<div style="font-weight:700; font-size:0.92rem; color:' + color + '; margin-top:12px; margin-bottom:4px; border-bottom:1px solid ' + color + '33; padding-bottom:3px;">' + headerText + '</div>';
+    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const bulletText = trimmed.substring(2).replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>');
+      html += '<div style="padding-left:12px; margin:2px 0; color:var(--text-secondary);"><span style="color:var(--cyan); margin-right:6px;">></span>' + bulletText + '</div>';
+    } else {
+      const styled = trimmed
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+      html += '<div style="color:var(--text-secondary); margin:2px 0;">' + styled + '</div>';
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+async function downloadDailyReport() {
+  const downloadBtn = document.getElementById('aiBriefDownloadBtn');
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = 'Generating PDF...';
+
+  try {
+    const mktData = gatherMarketDataForAI();
+    mktData.aiSummary = _lastAISummary || '';
+
+    const resp = await fetch('/api/generate-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mktData)
+    });
+
+    if (!resp.ok) throw new Error('PDF generation failed');
+
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Market_Report_' + new Date().toISOString().split('T')[0] + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    downloadBtn.textContent = 'Download PDF';
+    downloadBtn.disabled = false;
+  } catch (e) {
+    downloadBtn.textContent = 'Download Failed';
+    downloadBtn.disabled = false;
+    setTimeout(() => { downloadBtn.textContent = 'Download PDF'; }, 3000);
+    console.error('PDF download failed:', e);
   }
 }
 

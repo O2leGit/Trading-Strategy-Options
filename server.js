@@ -4,9 +4,11 @@ const http = require('http');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
+const PDFDocument = require('pdfkit');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // ─── Environment Detection ──────────────────────────────────────
 const certExists = fs.existsSync(path.join(__dirname, 'server-cert.pem'));
@@ -261,6 +263,394 @@ app.get('/api/alpha/*', async (req, res) => {
     res.json(r.data);
   } catch (e) {
     res.status(e.response?.status || 500).json({ error: e.message });
+  }
+});
+
+// ─── AI Market Summary (Claude API) ─────────────────────────────
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+let aiSummaryCache = { data: null, time: 0 };
+const AI_SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+app.post('/api/ai-summary', async (req, res) => {
+  if (!ANTHROPIC_API_KEY) return res.status(400).json({ error: 'Anthropic API key not configured. Add ANTHROPIC_API_KEY to Railway env vars.' });
+
+  // Return cached if fresh
+  if (aiSummaryCache.data && Date.now() - aiSummaryCache.time < AI_SUMMARY_CACHE_TTL) {
+    return res.json(aiSummaryCache.data);
+  }
+
+  const mkt = req.body || {};
+
+  const prompt = `You are the chief market strategist at a top hedge fund writing a daily market intelligence brief. Analyze this real-time data and produce a comprehensive, actionable market report.
+
+CURRENT MARKET DATA:
+- S&P 500: ${mkt.spx || 'N/A'} (${mkt.spxChange > 0 ? '+' : ''}${mkt.spxChangePct || 'N/A'}%)
+- Dow Jones: ${mkt.dow || 'N/A'} (${mkt.dowChangePct > 0 ? '+' : ''}${mkt.dowChangePct || 'N/A'}%)
+- Nasdaq: ${mkt.nasdaq || 'N/A'} (${mkt.nasdaqChangePct > 0 ? '+' : ''}${mkt.nasdaqChangePct || 'N/A'}%)
+- VIX: ${mkt.vix || 'N/A'} (${mkt.vixChange > 0 ? '+' : ''}${mkt.vixChange || 'N/A'})
+- VVIX: ${mkt.vvix || 'N/A'} (VVIX/VIX Ratio: ${mkt.vvixVixRatio || 'N/A'})
+- WTI Crude: $${mkt.oil || 'N/A'}
+- 10Y Treasury: ${mkt.treasury || 'N/A'}%
+
+VOLATILITY & REGIME:
+- Market Regime: ${mkt.regime || 'N/A'}
+- IV Rank: ${mkt.ivRank || 'N/A'}
+- VVIX Signal: ${mkt.vvixSignal || 'N/A'}
+- 20-Day Realized Volatility: ${mkt.realizedVol || 'N/A'}%
+- Variance Risk Premium (VIX - RV): ${mkt.vrp || 'N/A'} points
+- Expected Move (1D): +/-${mkt.expectedMove1d || 'N/A'} pts
+- Expected Move (1W): +/-${mkt.expectedMove1w || 'N/A'} pts
+- Expected Move Accuracy: ${mkt.expectedMoveAccuracy || 'N/A'}%
+
+GEX & FLOW:
+- Net GEX: ${mkt.gexRegime || 'N/A'}
+- Call Wall: ${mkt.callWall || 'N/A'}
+- Put Wall: ${mkt.putWall || 'N/A'}
+- Volatility Trigger: ${mkt.volTrigger || 'N/A'}
+- Unusual Flow Signals: ${mkt.unusualFlowCount || 0} detected
+- Top Flow: ${mkt.topFlow || 'None'}
+
+TECHNICALS:
+- RSI (14): ${mkt.rsi || 'N/A'}
+- MACD: ${mkt.macd || 'N/A'} (Signal: ${mkt.macdSignal || 'N/A'})
+- Bollinger Position: ${mkt.bollingerPosition || 'N/A'}
+
+SECTOR PERFORMANCE:
+${mkt.sectors || 'N/A'}
+
+NEWS SENTIMENT:
+${mkt.sentiment || 'N/A'}
+
+TOP TRADE RECOMMENDATIONS (from scanner):
+${mkt.topTrades || 'N/A'}
+
+Write the report with these sections:
+1. **MARKET PULSE** (2-3 sentences - the headline takeaway, what happened and why it matters)
+2. **REGIME ANALYSIS** (What the volatility regime, VVIX, VRP, and GEX are telling us about market structure right now)
+3. **KEY LEVELS** (Support/resistance from GEX walls, expected moves, technical levels)
+4. **SECTOR ROTATION** (What sector flows tell us about institutional positioning)
+5. **OPTIONS STRATEGY OUTLOOK** (Given current regime + IV rank + VRP, which strategies have edge today - be specific with strategy types)
+6. **RISK FACTORS** (What could go wrong, what to watch)
+7. **ACTIONABLE TRADES** (Top 3 specific trade ideas with entry, target, stop - based on the scanner data)
+8. **BOTTOM LINE** (One bold sentence - the single most important thing a trader needs to know today)
+
+Be direct, opinionated, and specific. No hedging language. Write like a Goldman Sachs morning note, not a blog post. Use numbers and levels, not vague descriptions.`;
+
+  try {
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const summary = message.content[0].text;
+    const result = {
+      summary,
+      generatedAt: new Date().toISOString(),
+      model: message.model,
+      usage: message.usage
+    };
+
+    aiSummaryCache = { data: result, time: Date.now() };
+    res.json(result);
+  } catch (e) {
+    console.error('AI Summary generation failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── PDF Daily Report Generator ─────────────────────────────────
+app.post('/api/generate-report', async (req, res) => {
+  const data = req.body || {};
+
+  try {
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margins: { top: 50, bottom: 50, left: 55, right: 55 },
+      info: {
+        Title: 'Options Strategy Command Center - Daily Market Report',
+        Author: 'Options Strategy Command Center',
+        Subject: `Market Report for ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+      }
+    });
+
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => {
+      const pdfBuffer = Buffer.concat(chunks);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Market_Report_${new Date().toISOString().split('T')[0]}.pdf"`);
+      res.send(pdfBuffer);
+    });
+
+    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+
+    // Color palette
+    const darkBg = '#0f0f23';
+    const cardBg = '#1a1a2e';
+    const cyan = '#06b6d4';
+    const green = '#10b981';
+    const red = '#ef4444';
+    const orange = '#f59e0b';
+    const purple = '#a855f7';
+    const textPrimary = '#e2e8f0';
+    const textMuted = '#94a3b8';
+    const white = '#ffffff';
+
+    // Full-page dark background
+    doc.rect(0, 0, doc.page.width, doc.page.height).fill(darkBg);
+
+    // Header bar
+    doc.rect(0, 0, doc.page.width, 90).fill(cardBg);
+    doc.rect(0, 88, doc.page.width, 2).fill(cyan);
+
+    doc.font('Helvetica-Bold').fontSize(22).fillColor(cyan)
+      .text('OPTIONS STRATEGY COMMAND CENTER', 55, 25, { width: 500 });
+    doc.font('Helvetica').fontSize(10).fillColor(textMuted)
+      .text(`Daily Market Intelligence Report`, 55, 52);
+    doc.font('Helvetica').fontSize(9).fillColor(textMuted)
+      .text(`${dateStr} | Generated ${timeStr}`, 55, 67);
+
+    // Regime badge on right
+    const regimeColor = data.regime === 'Crisis' ? red : data.regime === 'Elevated' ? orange : data.regime === 'Normal' ? green : cyan;
+    const regimeText = (data.regime || 'UNKNOWN').toUpperCase();
+    doc.roundedRect(doc.page.width - 170, 28, 110, 28, 4).fill(regimeColor);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(white)
+      .text(regimeText + ' REGIME', doc.page.width - 165, 36, { width: 100, align: 'center' });
+
+    let y = 105;
+
+    // Market Overview cards row
+    const cardWidth = 95;
+    const cardGap = 7;
+    const indices = [
+      { label: 'S&P 500', value: data.spx, change: data.spxChangePct, prefix: '' },
+      { label: 'Dow', value: data.dow, change: data.dowChangePct, prefix: '' },
+      { label: 'Nasdaq', value: data.nasdaq, change: data.nasdaqChangePct, prefix: '' },
+      { label: 'VIX', value: data.vix, change: data.vixChange, prefix: '' },
+      { label: 'VVIX', value: data.vvix, change: data.vvixChange, prefix: '' },
+      { label: 'Oil', value: data.oil, change: data.oilChange, prefix: '$' }
+    ];
+
+    indices.forEach((idx, i) => {
+      const x = 55 + i * (cardWidth + cardGap);
+      doc.roundedRect(x, y, cardWidth, 52, 4).fill(cardBg);
+      doc.font('Helvetica').fontSize(7).fillColor(textMuted)
+        .text(idx.label, x + 6, y + 6, { width: cardWidth - 12 });
+      doc.font('Helvetica-Bold').fontSize(12).fillColor(textPrimary)
+        .text(idx.prefix + (idx.value ? Number(idx.value).toLocaleString(undefined, {maximumFractionDigits: 2}) : '--'), x + 6, y + 18, { width: cardWidth - 12 });
+      const chgNum = parseFloat(idx.change) || 0;
+      const chgColor = chgNum >= 0 ? green : red;
+      doc.font('Helvetica').fontSize(8).fillColor(chgColor)
+        .text((chgNum >= 0 ? '+' : '') + chgNum.toFixed(2) + (idx.label !== 'VIX' && idx.label !== 'VVIX' ? '%' : ''), x + 6, y + 36, { width: cardWidth - 12 });
+    });
+
+    y += 65;
+
+    // Volatility & Regime section
+    doc.roundedRect(55, y, doc.page.width - 110, 80, 4).fill(cardBg);
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(cyan)
+      .text('VOLATILITY & REGIME ANALYSIS', 65, y + 8);
+
+    const volItems = [
+      `IV Rank: ${data.ivRank || '--'}`,
+      `VVIX/VIX Ratio: ${data.vvixVixRatio || '--'}`,
+      `Realized Vol (20d): ${data.realizedVol || '--'}%`,
+      `VRP: ${data.vrp || '--'} pts`,
+      `Expected Move 1D: +/-${data.expectedMove1d || '--'}`,
+      `Expected Move 1W: +/-${data.expectedMove1w || '--'}`,
+      `EM Accuracy: ${data.expectedMoveAccuracy || '--'}%`,
+      `VVIX Signal: ${data.vvixSignal || '--'}`
+    ];
+    doc.font('Helvetica').fontSize(8).fillColor(textPrimary);
+    volItems.forEach((item, i) => {
+      const col = i < 4 ? 0 : 1;
+      const row = i % 4;
+      doc.text(item, 70 + col * 240, y + 28 + row * 13, { width: 230 });
+    });
+
+    y += 92;
+
+    // GEX & Flow section
+    doc.roundedRect(55, y, (doc.page.width - 120) / 2, 70, 4).fill(cardBg);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(purple)
+      .text('GEX LEVELS', 65, y + 8);
+    doc.font('Helvetica').fontSize(8).fillColor(textPrimary);
+    const gexItems = [
+      `Net GEX: ${data.gexRegime || '--'}`,
+      `Call Wall: ${data.callWall || '--'}`,
+      `Put Wall: ${data.putWall || '--'}`,
+      `Vol Trigger: ${data.volTrigger || '--'}`
+    ];
+    gexItems.forEach((item, i) => {
+      doc.text(item, 70, y + 25 + i * 11);
+    });
+
+    const flowX = 55 + (doc.page.width - 120) / 2 + 10;
+    doc.roundedRect(flowX, y, (doc.page.width - 120) / 2, 70, 4).fill(cardBg);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(orange)
+      .text('UNUSUAL FLOW', flowX + 10, y + 8);
+    doc.font('Helvetica').fontSize(8).fillColor(textPrimary)
+      .text(`${data.unusualFlowCount || 0} signals detected`, flowX + 15, y + 25)
+      .text(data.topFlow || 'No significant flow', flowX + 15, y + 38, { width: (doc.page.width - 120) / 2 - 30 });
+
+    y += 82;
+
+    // Technicals
+    if (data.rsi || data.macd) {
+      doc.roundedRect(55, y, doc.page.width - 110, 45, 4).fill(cardBg);
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(cyan)
+        .text('TECHNICALS', 65, y + 8);
+      doc.font('Helvetica').fontSize(8).fillColor(textPrimary);
+      const techItems = [
+        `RSI (14): ${data.rsi || '--'}`,
+        `MACD: ${data.macd || '--'} / Signal: ${data.macdSignal || '--'}`,
+        `Bollinger: ${data.bollingerPosition || '--'}`
+      ];
+      techItems.forEach((item, i) => {
+        doc.text(item, 70 + i * 170, y + 26, { width: 165 });
+      });
+      y += 57;
+    }
+
+    // Sector performance
+    if (data.sectors) {
+      doc.roundedRect(55, y, doc.page.width - 110, 55, 4).fill(cardBg);
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(green)
+        .text('SECTOR PERFORMANCE', 65, y + 8);
+      doc.font('Helvetica').fontSize(7.5).fillColor(textPrimary)
+        .text(data.sectors, 70, y + 24, { width: doc.page.width - 140, lineGap: 2 });
+      y += 67;
+    }
+
+    // AI Summary section (the main event)
+    if (data.aiSummary) {
+      // Check if we need a new page
+      if (y > 550) {
+        doc.addPage();
+        doc.rect(0, 0, doc.page.width, doc.page.height).fill(darkBg);
+        y = 50;
+      }
+
+      doc.roundedRect(55, y, doc.page.width - 110, 18, 4).fill(cyan);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(darkBg)
+        .text('AI MARKET INTELLIGENCE BRIEF', 65, y + 3, { width: doc.page.width - 140 });
+      y += 24;
+
+      // Parse the AI summary into sections
+      const lines = data.aiSummary.split('\n');
+      let currentY = y;
+
+      for (const line of lines) {
+        // Check page break
+        if (currentY > doc.page.height - 70) {
+          doc.addPage();
+          doc.rect(0, 0, doc.page.width, doc.page.height).fill(darkBg);
+          currentY = 50;
+        }
+
+        const trimmed = line.trim();
+        if (!trimmed) {
+          currentY += 6;
+          continue;
+        }
+
+        // Section headers (bold, colored)
+        const headerMatch = trimmed.match(/^\*\*(\d+\.\s+)?(.+?)\*\*$/);
+        const inlineHeaderMatch = trimmed.match(/^\*\*(\d+\.\s+)?(.+?)\*\*\s*(.+)/);
+
+        if (headerMatch) {
+          currentY += 4;
+          doc.font('Helvetica-Bold').fontSize(10).fillColor(cyan)
+            .text(headerMatch[2].replace(/[#*]/g, ''), 60, currentY, { width: doc.page.width - 130 });
+          currentY += 15;
+        } else if (inlineHeaderMatch) {
+          currentY += 4;
+          doc.font('Helvetica-Bold').fontSize(10).fillColor(cyan)
+            .text(inlineHeaderMatch[2].replace(/[#*]/g, ''), 60, currentY, { width: doc.page.width - 130 });
+          currentY += 15;
+          // Print the rest of the line
+          const restText = inlineHeaderMatch[3].replace(/\*\*/g, '').trim();
+          if (restText) {
+            const textHeight = doc.font('Helvetica').fontSize(8.5).fillColor(textPrimary)
+              .heightOfString(restText, { width: doc.page.width - 140 });
+            doc.text(restText, 65, currentY, { width: doc.page.width - 140, lineGap: 2 });
+            currentY += textHeight + 4;
+          }
+        } else if (trimmed.startsWith('#')) {
+          // Markdown headers
+          currentY += 4;
+          const headerText = trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '');
+          doc.font('Helvetica-Bold').fontSize(10).fillColor(cyan)
+            .text(headerText, 60, currentY, { width: doc.page.width - 130 });
+          currentY += 15;
+        } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          // Bullet points
+          const bulletText = trimmed.substring(2).replace(/\*\*/g, '');
+          const textHeight = doc.font('Helvetica').fontSize(8.5).fillColor(textPrimary)
+            .heightOfString(bulletText, { width: doc.page.width - 155 });
+          doc.font('Helvetica').fontSize(8.5).fillColor(cyan).text('>', 65, currentY);
+          doc.font('Helvetica').fontSize(8.5).fillColor(textPrimary)
+            .text(bulletText, 78, currentY, { width: doc.page.width - 155, lineGap: 2 });
+          currentY += textHeight + 4;
+        } else {
+          // Regular text
+          const cleanText = trimmed.replace(/\*\*/g, '');
+          const textHeight = doc.font('Helvetica').fontSize(8.5).fillColor(textPrimary)
+            .heightOfString(cleanText, { width: doc.page.width - 130 });
+          doc.text(cleanText, 65, currentY, { width: doc.page.width - 130, lineGap: 2 });
+          currentY += textHeight + 4;
+        }
+      }
+      y = currentY;
+    }
+
+    // Top Trades section
+    if (data.topTrades && y < doc.page.height - 100) {
+      if (y > doc.page.height - 120) {
+        doc.addPage();
+        doc.rect(0, 0, doc.page.width, doc.page.height).fill(darkBg);
+        y = 50;
+      }
+      doc.roundedRect(55, y, doc.page.width - 110, 18, 4).fill(orange);
+      doc.font('Helvetica-Bold').fontSize(11).fillColor(darkBg)
+        .text('TOP TRADE RECOMMENDATIONS', 65, y + 3);
+      y += 24;
+      const tradeLines = data.topTrades.split('\n').filter(l => l.trim());
+      for (const line of tradeLines) {
+        if (y > doc.page.height - 60) {
+          doc.addPage();
+          doc.rect(0, 0, doc.page.width, doc.page.height).fill(darkBg);
+          y = 50;
+        }
+        const cleanLine = line.replace(/\*\*/g, '');
+        const h = doc.font('Helvetica').fontSize(8.5).fillColor(textPrimary)
+          .heightOfString(cleanLine, { width: doc.page.width - 140 });
+        doc.text(cleanLine, 65, y, { width: doc.page.width - 140, lineGap: 2 });
+        y += h + 3;
+      }
+    }
+
+    // Footer on every page
+    const pageCount = doc.bufferedPageRange();
+    for (let i = 0; i < (pageCount.count || 1); i++) {
+      // Footer is drawn when the page is finalized by pdfkit
+    }
+
+    // Final footer
+    const footerY = doc.page.height - 35;
+    doc.rect(0, footerY - 5, doc.page.width, 40).fill(cardBg);
+    doc.font('Helvetica').fontSize(7).fillColor(textMuted)
+      .text('Options Strategy Command Center | For informational purposes only | Generated by AI', 55, footerY + 2, { width: doc.page.width - 110, align: 'center' });
+    doc.font('Helvetica').fontSize(7).fillColor(textMuted)
+      .text(`Report generated: ${dateStr} at ${timeStr}`, 55, footerY + 14, { width: doc.page.width - 110, align: 'center' });
+
+    doc.end();
+  } catch (e) {
+    console.error('PDF generation failed:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
