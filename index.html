@@ -4436,6 +4436,13 @@ function updateCommandCenter() {
   const timeEl = document.getElementById('cmdCenterTime');
   if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
 
+  // Update action bar regime badge
+  const actionRegime = document.getElementById('actionBarRegime');
+  if (actionRegime && rs) {
+    const regimeColor = rs < 30 ? 'var(--green)' : rs < 60 ? 'var(--yellow)' : 'var(--red)';
+    actionRegime.innerHTML = '<span style="color:' + regimeColor + '; font-weight:600;">Regime: ' + rs + '/100</span>';
+  }
+
   // Regime card
   const regimeEl = document.getElementById('cmdRegime');
   const regimeLabelEl = document.getElementById('cmdRegimeLabel');
