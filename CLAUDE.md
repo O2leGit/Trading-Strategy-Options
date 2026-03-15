@@ -4,7 +4,7 @@
 Single-page options trading dashboard (`index.html`) — dark-themed, no frameworks, pure HTML/CSS/JS with live market data. Deployed to Railway cloud with password protection.
 
 ## File Structure
-- `index.html` — Entire frontend application (~4,500+ lines). All HTML, CSS, and JS in one file.
+- `index.html` — Entire frontend application (~8,600 lines). All HTML, CSS, and JS in one file.
 - `server.js` — Express backend (~600 lines). API proxies, Schwab OAuth, password protection, cloud/local dual mode.
 - `package.json` — Dependencies: express, axios. Node >=18.
 - `schwab_config.json` — Schwab OAuth credentials (gitignored)
@@ -43,7 +43,7 @@ Single-page options trading dashboard (`index.html`) — dark-themed, no framewo
 - **MARKET tabs**: Market Overview, News & Sentiment, Regime Classifier, Fundamental Screener
 - **STRATEGIES tabs**: Strategy Templates, 0DTE SPX Scanner, Theta Decay Calc, Strike Probability, Pre-Market Edge, Skew Exploiter, Weekly Calendar, Earnings Crusher, EOD Theta Scalper
 - **TOOLS tabs**: Position Tracker, Greeks & P/L Calculator, Risk Management, Performance Dashboard, Strategy Education, Backtester, Paper Trading, Connections
-- **MARKET object**: Centralized live market data (SPX, VIX, DOW, NASDAQ, Oil, Treasury) with expected move functions
+- **MARKET object**: Centralized live market data (SPX, VIX, DOW, NASDAQ, Oil, Treasury) with expected move functions, regime score, IV rank/percentile, trend strength, technicals, sentiment
 - **Best Plays engine**: Auto-scan system on each strategy tab showing Day Trade / Swing / Monthly plays
 - **Black-Scholes**: Options pricing model for Greeks calculation (bsPrice, bsGreeks, bsImpliedVol)
 - **Canvas charts**: P&L visualization
@@ -94,17 +94,21 @@ All proxies bypass CORS issues and inject API keys from env vars:
 
 ### Refresh Schedule
 - **Core data** (indices, VIX): Every 60 seconds via `fetchAllMarketData()`
-- **Secondary data** (sectors, news): Every 5 minutes via `fetchSecondaryData()`
+- **Secondary data** (sectors, news, technicals, sentiment): Every 5 minutes via `fetchSecondaryData()`
 - **Earnings calendar**: Once on load, then every 6 hours
 - **Options scan**: Every 3 minutes via `runPriorityScan()` (respects per-ticker cooldown)
 - **WebSocket**: Real-time tick updates for SPY/QQQ/DIA (when Finnhub key configured)
 
 ### Derived Values (computed from live data)
 - **Regime**: VIX < 15 = Low, 15-20 = Normal, 20-30 = Elevated, 30+ = Crisis
-- **IV Rank**: `Math.round((vix - 12) / (40 - 12) * 100)` (clamped 0-100)
+- **IV Rank**: True rank using rolling 252-day VIX history (% of range)
+- **IV Percentile**: % of days VIX was below current level
+- **Regime Score**: 0-100 composite (VIX 40%, IV rank 20%, trend 20%, oil 10%, rates 10%)
+- **Trend Strength**: -100 to +100 from SPX change (60%) and VIX change (40%)
 - **Expected Moves**: `spx * (vix/100) * sqrt(T/365)` for 1d/1w/1m
 - **Overnight Gap**: `((spx - spxPrevClose) / spxPrevClose * 100)`
-- **Sentiment**: Keyword-based analysis of Finnhub news headlines
+- **Sentiment**: Alpha Vantage AI sentiment scores (SPY/QQQ/AAPL/NVDA) + Finnhub keyword analysis
+- **Technicals**: RSI, MACD, Bollinger Bands from Alpha Vantage, integrated into signal scoring
 
 ### Dynamic HTML IDs (live-updated elements)
 - Market cards: `val-spx`, `chg-spx`, `val-dow`, `chg-dow`, `val-nasdaq`, `chg-nasdaq`, `val-vix`, `chg-vix`, `val-oil`, `chg-oil`, `val-tsy`, `chg-tsy`
@@ -114,6 +118,7 @@ All proxies bypass CORS issues and inject API keys from env vars:
 - 0DTE tab: `dte-spx`, `dte-spx-chg`, `dte-vix`
 - Risk tab: `risk-vix-current`
 - Connections tab: `connTable`, `connTableBody`, `connFetchCount`, `connLastUpdate`, `connWSStatus`, `apiKeyStatus`
+- Paper Trading Greeks: `ptNetDelta`, `ptNetGamma`, `ptNetTheta`, `ptNetVega`, `ptRiskLevel`
 - Header: `dataStatus`, `dataStatusIcon`, `dataStatusText`
 
 ### Connection Test (11 feeds)
@@ -150,13 +155,34 @@ All proxies bypass CORS issues and inject API keys from env vars:
 - `updateAllDisplays()` — Master display updater called after each data fetch
 - `setDataStatus(icon, text, color)` — Updates header data status indicator
 
+### Signal Scoring Engine
+- `scoreSignal(opts)` — Composite 0-100 score for any trade signal using 6 factors:
+  - IV environment (25%): IV rank alignment with trade type (credit vs debit)
+  - Regime (20%): Composite regime score alignment
+  - Technicals (20%): RSI, MACD, Bollinger Band context
+  - Sentiment (15%): Alpha Vantage AI sentiment scores
+  - Greeks quality (10%): Delta sweet spot, return-on-risk
+  - Risk/reward (10%): Credit vs max risk ratio
+- `signalScoreBadge(score)` — Renders A-F grade badge with color
+- All strategy generators now sort by composite score, display grade badges
+
 ### Strategy Engine
 - `generateBestPlays(tabId)` — Dispatcher for strategy-specific play generators
+- `generateStrategyTemplatePlays()` — Regime-aware recommendations (adjusts by regime score)
 - `calculateThetaDashboard()` — Theta income projections
 - `calculateProbStrikes()` — Strike probability matrix
 - `calculateRiskLimits()` — Position sizing and loss limits
 - 9 play generators: `generateZeroDTEPlays()`, `generateThetaPlays()`, etc.
 - `runPriorityScan()` — Options chain scanner across SCAN_UNIVERSE (50 tickers)
+
+### Paper Trading & Risk Management
+- `ptCalcPortfolioGreeks()` — Aggregates net delta/gamma/theta/vega across all positions
+- `ptUpdateGreeksDisplay()` — Renders portfolio Greeks bar with risk level assessment
+- `ptRiskGate(trade, ...)` — Enforces risk limits before every trade entry:
+  - 50% max buying power usage
+  - 1% daily loss limit, 5% max single position risk
+  - Max 2 concurrent positions per strategy
+- `ptRenderStratBreakdown()` — Enhanced: profit factor, expectancy, avg win/loss, max drawdown, edge indicator per strategy
 
 ### Connection & Config
 - `runConnectionTest()` — Tests all 11 data feeds, shows green/red status
