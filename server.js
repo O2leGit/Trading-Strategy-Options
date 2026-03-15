@@ -203,6 +203,36 @@ app.get('/api/yahoo/options/:symbol', async (req, res) => {
   }
 });
 
+// ─── Polygon.io Proxy (with caching to avoid 429 rate limits) ──
+const polygonCache = {};
+const POLYGON_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+app.get('/api/polygon/*', async (req, res) => {
+  const polygonKey = process.env.POLYGON_KEY || '';
+  if (!polygonKey) return res.status(400).json({ error: 'Polygon key not configured' });
+
+  const polygonPath = req.params[0]; // everything after /api/polygon/
+  const queryStr = new URLSearchParams(req.query);
+  queryStr.set('apiKey', polygonKey);
+  const cacheKey = polygonPath + '?' + queryStr.toString();
+
+  // Return cached if fresh
+  if (polygonCache[cacheKey] && Date.now() - polygonCache[cacheKey].time < POLYGON_CACHE_TTL) {
+    return res.json(polygonCache[cacheKey].data);
+  }
+
+  try {
+    const url = `https://api.polygon.io/${polygonPath}?${queryStr.toString()}`;
+    const r = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    polygonCache[cacheKey] = { data: r.data, time: Date.now() };
+    res.json(r.data);
+  } catch (e) {
+    res.status(e.response?.status || 500).json({ error: e.message });
+  }
+});
+
 // ─── Schwab Configuration ──────────────────────────────────────
 const CONFIG_FILE = path.join(__dirname, 'schwab_config.json');
 const TOKENS_FILE = path.join(__dirname, 'schwab_tokens.json');
