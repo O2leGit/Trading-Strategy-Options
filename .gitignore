@@ -4,3 +4,4 @@ schwab_config.json
 server-cert.pem
 server-key.pem
 .env
+dist/

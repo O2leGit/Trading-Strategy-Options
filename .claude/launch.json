@@ -18,6 +18,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["C:/Users/Chris/AppData/Roaming/npm/node_modules/serve/build/main.js", "C:/Users/Chris/Documents/ikigai-trade-os/dist/public", "--listen", "3900", "--no-clipboard", "--single"],
       "port": 3900
+    },
+    {
+      "name": "denver-dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/Chris/AppData/Roaming/npm/node_modules/serve/build/main.js", "C:/Users/Chris/Documents/denver-ops-dashboard", "--listen", "3848", "--no-clipboard"],
+      "port": 3848
     }
   ]
 }
