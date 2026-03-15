@@ -9,9 +9,11 @@ const app = express();
 app.use(express.json());
 
 // ─── Environment Detection ──────────────────────────────────────
-const IS_CLOUD = process.env.RAILWAY_ENVIRONMENT || process.env.RENDER || process.env.NODE_ENV === 'production';
+const certExists = fs.existsSync(path.join(__dirname, 'server-cert.pem'));
+const IS_CLOUD = !certExists || process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || process.env.RENDER || process.env.NODE_ENV === 'production';
 const PORT = process.env.PORT || 3847;
 const SITE_PASSWORD = process.env.SITE_PASSWORD || ''; // Set in Railway env vars
+console.log(`Environment: ${IS_CLOUD ? 'CLOUD' : 'LOCAL'}, certs: ${certExists}, PORT: ${PORT}`);
 
 // ─── Password Protection (cloud only) ──────────────────────────
 if (IS_CLOUD && SITE_PASSWORD) {
