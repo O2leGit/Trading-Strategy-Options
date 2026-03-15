@@ -93,6 +93,63 @@ body {
   border-bottom-color: var(--blue);
 }
 
+/* Quick Action Bar */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  background: linear-gradient(180deg, #0f172a 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.action-btn {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.action-btn:hover { transform: translateY(-1px); filter: brightness(1.15); }
+.action-btn:active { transform: translateY(0); }
+.action-btn-primary {
+  background: linear-gradient(135deg, #0891b2, #6366f1);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(6,182,212,0.3);
+}
+.action-btn-secondary {
+  background: var(--bg-card-alt);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.action-btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+.action-btn-warn {
+  background: rgba(249,115,22,0.15);
+  color: var(--orange);
+  border: 1px solid rgba(249,115,22,0.3);
+}
+.action-btn .btn-badge {
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.15);
+  color: inherit;
+}
+.action-bar-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
 /* Tab Groups */
 .tab-group {
   display: flex;
@@ -755,6 +812,26 @@ body {
   </div>
 </div>
 
+<!-- Quick Action Bar -->
+<div class="action-bar" id="actionBar">
+  <button class="action-btn action-btn-primary" id="aiBriefBtn" onclick="generateAISummary()">
+    <span>&#9733;</span> Generate AI Brief
+  </button>
+  <button class="action-btn action-btn-secondary" id="aiBriefDownloadBtn" onclick="downloadDailyReport()" style="display:none;">
+    <span>&#8681;</span> Download PDF
+  </button>
+  <button class="action-btn action-btn-secondary" onclick="generateTopTrades()">
+    <span>&#8635;</span> Rescan Trades
+  </button>
+  <button class="action-btn action-btn-secondary" onclick="runConnectionTest()">
+    <span>&#9889;</span> Test Feeds
+  </button>
+  <div class="action-bar-status">
+    <span id="aiBriefTime"></span>
+    <span id="actionBarRegime"></span>
+  </div>
+</div>
+
 <!-- Tabs -->
 <div class="tabs">
   <div class="tab-group" data-group="market">
@@ -835,12 +912,7 @@ body {
     <div class="card" style="border:1px solid var(--cyan); margin-bottom:12px; padding:14px 16px; background:linear-gradient(135deg, rgba(6,182,212,0.05), rgba(139,92,246,0.03));">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <span class="card-title" style="color:var(--cyan); font-size:1.05rem;">Daily Command Center</span>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <span id="cmdCenterTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
-          <span id="aiBriefTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
-          <button class="quick-btn" id="aiBriefDownloadBtn" onclick="downloadDailyReport()" style="padding:4px 12px; font-size:0.75rem; display:none;" title="Download full daily report as PDF">PDF</button>
-          <button class="quick-btn" id="aiBriefBtn" onclick="generateAISummary()" style="padding:5px 14px; font-size:0.78rem; background:linear-gradient(135deg, rgba(6,182,212,0.2), rgba(139,92,246,0.2)); border:1px solid var(--cyan); color:var(--cyan); font-weight:600;">AI Brief</button>
-        </div>
+        <span id="cmdCenterTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
       </div>
       <div id="cmdCenterContent">
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
@@ -4341,6 +4413,7 @@ async function updateAllDisplays() {
   updateRegimeTransitionAlert();
   updateCommandCenter();
   updatePositionAlerts();
+  if (typeof autoUpdatePositionPrices === 'function') autoUpdatePositionPrices();
 
   // Refresh best plays for active tab
   const activeTab = document.querySelector('.tab.active');
@@ -4970,7 +5043,7 @@ async function generateAISummary() {
   const timeEl = document.getElementById('aiBriefTime');
 
   btn.disabled = true;
-  btn.textContent = 'Generating...';
+  btn.innerHTML = '<span>&#9733;</span> Generating...';
   btn.style.opacity = '0.6';
   content.style.display = 'none';
   loading.style.display = 'block';
@@ -5004,12 +5077,12 @@ async function generateAISummary() {
     content.innerHTML = html;
     content.style.display = 'block';
     loading.style.display = 'none';
-    downloadBtn.style.display = 'inline-block';
+    downloadBtn.style.display = 'flex';
 
     const genTime = new Date(result.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     timeEl.textContent = 'Generated ' + genTime;
 
-    btn.textContent = 'Refresh';
+    btn.innerHTML = '<span>&#8635;</span> Refresh Brief';
     btn.disabled = false;
     btn.style.opacity = '1';
   } catch (e) {
@@ -5019,7 +5092,7 @@ async function generateAISummary() {
       '<div style="font-size:0.72rem; margin-top:8px; color:var(--text-muted);">Ensure ANTHROPIC_API_KEY is set in Railway env vars.</div></div>';
     content.style.display = 'block';
     loading.style.display = 'none';
-    btn.textContent = 'Retry';
+    btn.innerHTML = '<span>&#9733;</span> Retry AI Brief';
     btn.disabled = false;
     btn.style.opacity = '1';
   }
@@ -5756,15 +5829,68 @@ function scoreSignal(opts) {
   }
   totalWeight += rrWeight;
 
-  // Weighted composite
-  const composite = Math.round(
+  // Weighted composite (before penalties)
+  let composite = Math.round(
     (scores.iv * ivWeight + scores.regime * regimeWeight + scores.tech * techWeight +
      scores.sentiment * sentWeight + scores.greeks * greeksWeight + scores.riskReward * rrWeight) / totalWeight
   );
 
+  // === PENALTY SYSTEM (post-score adjustments) ===
+  scores.penalties = [];
+
+  // PENALTY 1: Earnings within 7 days -- never sell premium into earnings
+  if (opts.sym && typeof earningsCalendar !== 'undefined' && earningsCalendar.length > 0) {
+    const earningsMatch = earningsCalendar.find(e => e.symbol === opts.sym);
+    if (earningsMatch) {
+      const earningsDate = new Date(earningsMatch.date);
+      const daysToEarnings = Math.ceil((earningsDate - new Date()) / 86400000);
+      if (daysToEarnings >= 0 && daysToEarnings <= 7 && opts.type === 'credit') {
+        composite = Math.round(composite * 0.3); // slash by 70%
+        scores.penalties.push('EARNINGS in ' + daysToEarnings + 'd (-70%)');
+      } else if (daysToEarnings >= 0 && daysToEarnings <= 14 && opts.type === 'credit') {
+        composite = Math.round(composite * 0.7); // slash by 30%
+        scores.penalties.push('Earnings in ' + daysToEarnings + 'd (-30%)');
+      }
+    }
+  }
+
+  // PENALTY 2: Bid-ask spread too wide (liquidity filter)
+  if (opts.bid !== undefined && opts.ask !== undefined && opts.ask > 0) {
+    const spreadPct = (opts.ask - opts.bid) / ((opts.ask + opts.bid) / 2);
+    if (spreadPct > 0.30) {
+      composite = Math.round(composite * 0.5); // halve score for very illiquid
+      scores.penalties.push('Wide spread ' + (spreadPct * 100).toFixed(0) + '% (-50%)');
+    } else if (spreadPct > 0.15) {
+      composite = Math.round(composite * 0.8); // 20% penalty
+      scores.penalties.push('Spread ' + (spreadPct * 100).toFixed(0) + '% (-20%)');
+    }
+  }
+
+  // PENALTY 3: 0DTE time-of-day gamma risk
+  if (opts.dte !== undefined && opts.dte <= 1) {
+    const now = new Date();
+    const hour = now.getHours();
+    const minutes = now.getMinutes();
+    const marketMinutes = (hour - 9) * 60 + (minutes - 30); // minutes since 9:30 ET
+    if (marketMinutes > 330) { // after 3:00 PM ET
+      composite = Math.round(composite * 0.4); // kill 0DTE after 3pm
+      scores.penalties.push('0DTE after 3pm (-60%)');
+    } else if (marketMinutes > 270) { // after 2:00 PM ET
+      composite = Math.round(composite * 0.7); // penalize after 2pm
+      scores.penalties.push('0DTE after 2pm (-30%)');
+    } else if (marketMinutes < 15) { // first 15 min
+      composite = Math.round(composite * 0.8); // opening volatility
+      scores.penalties.push('0DTE opening 15min (-20%)');
+    }
+    // 9:45am-2pm is the sweet spot for 0DTE, no penalty
+  }
+
+  composite = Math.max(0, Math.min(100, composite));
+
   return {
     composite,
     scores,
+    penalties: scores.penalties,
     grade: composite >= 75 ? 'A' : composite >= 60 ? 'B' : composite >= 45 ? 'C' : composite >= 30 ? 'D' : 'F',
     color: composite >= 75 ? 'var(--green)' : composite >= 60 ? 'var(--blue)' : composite >= 45 ? 'var(--yellow)' : composite >= 30 ? 'var(--orange)' : 'var(--red)'
   };
@@ -5871,7 +5997,7 @@ function generateTopTrades() {
     // 1. Day trade credit spreads (0-2 DTE)
     const dayPut = findCreditSpread(data.contracts, 'put', 0, 2, 0.15, sym === 'SPY' ? 5 : 3);
     if (dayPut && dayPut.credit > 0.20) {
-      const sig = scoreSignal({ type: 'credit', delta: dayPut.short.delta, iv: dayPut.short.iv, dte: dayPut.dte, credit: dayPut.credit, maxRisk: dayPut.maxRisk || 5, sym });
+      const sig = scoreSignal({ type: 'credit', delta: dayPut.short.delta, iv: dayPut.short.iv, dte: dayPut.dte, credit: dayPut.credit, maxRisk: dayPut.maxRisk || 5, sym, bid: dayPut.short.bid, ask: dayPut.short.ask });
       allPlays.push({ sym, strategy: 'Theta Day Trade', horizon: 'DAY', type: 'Put Credit Spread',
         detail: 'Sell ' + dayPut.short.strike + ' P / Buy ' + dayPut.long.strike + ' P',
         credit: dayPut.credit, maxRisk: dayPut.maxRisk, dte: dayPut.dte,
@@ -5881,7 +6007,7 @@ function generateTopTrades() {
     // 2. Iron condors (7-21 DTE swing)
     const swIC = findIronCondor(data.contracts, 7, 21, 0.15, 0.15, sym === 'SPY' ? 5 : 3);
     if (swIC) {
-      const sig = scoreSignal({ type: 'credit', delta: swIC.putSpread.short.delta, iv: swIC.putSpread.short.iv, dte: swIC.dte, credit: parseFloat(swIC.totalCredit), maxRisk: parseFloat(swIC.maxRisk), sym });
+      const sig = scoreSignal({ type: 'credit', delta: swIC.putSpread.short.delta, iv: swIC.putSpread.short.iv, dte: swIC.dte, credit: parseFloat(swIC.totalCredit), maxRisk: parseFloat(swIC.maxRisk), sym, bid: swIC.putSpread.short.bid, ask: swIC.putSpread.short.ask });
       allPlays.push({ sym, strategy: 'Iron Condor', horizon: 'SWING', type: 'Iron Condor',
         detail: 'P: ' + swIC.putSpread.short.strike + '/' + swIC.putSpread.long.strike + ' | C: ' + swIC.callSpread.short.strike + '/' + swIC.callSpread.long.strike,
         credit: parseFloat(swIC.totalCredit), maxRisk: parseFloat(swIC.maxRisk), dte: swIC.dte,
@@ -5891,7 +6017,7 @@ function generateTopTrades() {
     // 3. Monthly iron condors (30-60 DTE)
     const moIC = findIronCondor(data.contracts, 30, 60, 0.12, 0.12, sym === 'SPY' ? 10 : 5);
     if (moIC) {
-      const sig = scoreSignal({ type: 'credit', delta: moIC.putSpread.short.delta, iv: moIC.putSpread.short.iv, dte: moIC.dte, credit: parseFloat(moIC.totalCredit), maxRisk: parseFloat(moIC.maxRisk), sym });
+      const sig = scoreSignal({ type: 'credit', delta: moIC.putSpread.short.delta, iv: moIC.putSpread.short.iv, dte: moIC.dte, credit: parseFloat(moIC.totalCredit), maxRisk: parseFloat(moIC.maxRisk), sym, bid: moIC.putSpread.short.bid, ask: moIC.putSpread.short.ask });
       allPlays.push({ sym, strategy: 'Monthly Theta', horizon: 'MONTHLY', type: 'Iron Condor',
         detail: 'P: ' + moIC.putSpread.short.strike + '/' + moIC.putSpread.long.strike + ' | C: ' + moIC.callSpread.short.strike + '/' + moIC.callSpread.long.strike,
         credit: parseFloat(moIC.totalCredit), maxRisk: parseFloat(moIC.maxRisk), dte: moIC.dte,
@@ -5904,7 +6030,7 @@ function generateTopTrades() {
       const p = probPuts[0];
       const prob = Math.round((1 - Math.abs(p.delta)) * 100);
       if (prob >= 85) {
-        const sig = scoreSignal({ type: 'credit', delta: p.delta, iv: p.iv, dte: p.dte, credit: p.bid, sym });
+        const sig = scoreSignal({ type: 'credit', delta: p.delta, iv: p.iv, dte: p.dte, credit: p.bid, sym, bid: p.bid, ask: p.ask });
         allPlays.push({ sym, strategy: 'High Prob Put', horizon: p.dte <= 7 ? 'DAY' : p.dte <= 21 ? 'SWING' : 'MONTHLY', type: prob + '% Prob OTM Put',
           detail: 'Sell ' + p.strike + ' Put @ $' + p.bid.toFixed(2) + ' | DTE: ' + p.dte,
           credit: p.bid, dte: p.dte, delta: p.delta, iv: p.iv, score: sig, price });
@@ -5968,9 +6094,31 @@ function generateTopTrades() {
     return true;
   });
 
+  // Sector concentration cap: max 2 trades per sector in top results
+  const SECTOR_MAP = {
+    AAPL:'Tech',MSFT:'Tech',NVDA:'Tech',AMD:'Tech',INTC:'Tech',MU:'Tech',SMCI:'Tech',ARM:'Tech',CRM:'Tech',
+    AMZN:'Consumer',META:'Tech',GOOGL:'Tech',TSLA:'Auto',NFLX:'Consumer',
+    SPY:'Index',QQQ:'Index',IWM:'Index',
+    COIN:'Crypto',MARA:'Crypto',RIOT:'Crypto',SOFI:'Fintech',SQ:'Fintech',PYPL:'Fintech',
+    BA:'Industrial',DIS:'Consumer',UBER:'Consumer',PLTR:'Tech',SHOP:'Tech',SNOW:'Tech',ROKU:'Tech',
+    JPM:'Finance',GS:'Finance',V:'Finance',MA:'Finance',
+    XOM:'Energy',CVX:'Energy',
+    PFE:'Health',UNH:'Health',
+    HD:'Retail',WMT:'Retail',COST:'Retail',
+    BABA:'China',NIO:'China',
+    RIVN:'Auto',LCID:'Auto',GME:'Meme',AMC:'Meme',ABNB:'Consumer',ZM:'Tech',SNAP:'Tech'
+  };
+  const sectorCounts = {};
+  const sectorCapped = unique.filter(p => {
+    const sector = SECTOR_MAP[p.sym] || 'Other';
+    sectorCounts[sector] = (sectorCounts[sector] || 0) + 1;
+    if (sector !== 'Index' && sectorCounts[sector] > 2) return false; // allow unlimited index trades
+    return true;
+  });
+
   // Filter by minimum score based on regime
   const minScore = rs >= 55 ? 30 : rs >= 35 ? 40 : 50; // higher bar in bad regimes
-  const filtered = unique.filter(p => p.score.composite >= minScore);
+  const filtered = sectorCapped.filter(p => p.score.composite >= minScore);
 
   if (filtered.length === 0) {
     container.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">' +
@@ -6638,6 +6786,60 @@ function updatePositionPrice(id, newPrice) {
   }
 }
 
+// Auto-update position prices from live OPTIONS_CACHE data
+function autoUpdatePositionPrices() {
+  if (!positions || positions.length === 0) return;
+  let updated = false;
+
+  positions.forEach(pos => {
+    const sym = pos.symbol;
+    const cached = OPTIONS_CACHE[sym];
+    if (!cached || !cached.contracts || cached.contracts.length === 0) return;
+
+    const isCredit = pos.type.includes('SPREAD') || pos.type.includes('CONDOR') || pos.type.includes('STRANGLE');
+
+    if (pos.type === 'CALL' || pos.type === 'PUT' || pos.type === 'LEAP CALL' || pos.type === 'LEAP PUT') {
+      // Simple option: find matching contract by strike + type + expiry
+      const optType = pos.type.includes('CALL') ? 'call' : 'put';
+      const match = cached.contracts.find(c =>
+        c.type === optType && c.strike === pos.strike &&
+        (!pos.expiry || c.expiry === pos.expiry)
+      );
+      if (match && match.mid > 0) {
+        pos.current = match.mid;
+        updated = true;
+      }
+    } else if (isCredit && pos.shortStrike && pos.longStrike) {
+      // Spread: find short and long legs, compute spread mid
+      const optType = pos.type.includes('PUT') || pos.type.includes('CONDOR') ? 'put' : 'call';
+      const shortLeg = cached.contracts.find(c =>
+        c.type === optType && c.strike === pos.shortStrike &&
+        (!pos.expiry || c.expiry === pos.expiry)
+      );
+      const longLeg = cached.contracts.find(c =>
+        c.type === optType && c.strike === pos.longStrike &&
+        (!pos.expiry || c.expiry === pos.expiry)
+      );
+      if (shortLeg && longLeg) {
+        const spreadMid = Math.abs(shortLeg.mid - longLeg.mid);
+        if (spreadMid > 0) {
+          pos.current = +spreadMid.toFixed(2);
+          updated = true;
+        }
+      }
+    }
+  });
+
+  if (updated) {
+    savePositions();
+    // Only re-render if Position Tracker tab is active
+    const activeTab = document.querySelector('.tab.active');
+    if (activeTab && activeTab.dataset.tab === 'positions') {
+      renderPositions();
+    }
+  }
+}
+
 function savePositions() {
   localStorage.setItem('optionsPositions', JSON.stringify(positions));
 }
@@ -7019,40 +7221,54 @@ function analyzePosition(pos) {
     return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
   }
 
-  // Factor 2: Profit target hit (credit trades)
+  // Factor 2: Profit target hit (credit trades) -- tastytrade research: close at 50% max profit
   if (isCredit && pos.entry > 0 && pos.current !== undefined) {
     const profitPct = (1 - (pos.current / pos.entry)) * 100;
-    if (profitPct >= 75) {
+    if (profitPct >= 50) {
       action = 'CLOSE';
-      rationale = 'Captured ' + profitPct.toFixed(0) + '% of max profit. Remaining premium not worth gamma risk.';
-      suggestion = 'Close for $' + ((pos.entry - pos.current) * pos.contracts * 100).toFixed(0) + ' profit. Redeploy capital.';
-      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
-    }
-    if (profitPct >= 50 && dte <= 7) {
-      action = 'CLOSE';
-      rationale = '50%+ profit with <7 DTE. Gamma risk increasing sharply.';
-      suggestion = 'Close to lock in $' + pnl.toFixed(0) + ' profit.';
+      rationale = 'Hit 50% profit target (' + profitPct.toFixed(0) + '% captured). Research on 71K trades shows closing at 50% maximizes total returns and reduces risk.';
+      suggestion = 'Close for $' + ((pos.entry - pos.current) * pos.contracts * 100).toFixed(0) + ' profit. Redeploy into new 45-DTE position.';
       return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
     }
   }
 
-  // Factor 3: Loss management
-  if (pnlPct <= -100) {
+  // Factor 2b: 21 DTE hard close rule -- gamma risk accelerates exponentially after 21 DTE
+  if (isCredit && dte <= 21 && dte > 0) {
+    if (pnl > 0) {
+      action = 'CLOSE';
+      rationale = '21 DTE rule: ' + dte + ' DTE remaining with $' + pnl.toFixed(0) + ' profit. Gamma acceleration zone -- close winners, redeploy at 45 DTE.';
+      suggestion = 'Close to lock in profit. Roll to next month for fresh theta.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    } else if (dte <= 14) {
+      action = 'CLOSE';
+      rationale = '21 DTE rule: Only ' + dte + ' DTE with loss. Gamma risk too high to hold.';
+      suggestion = 'Cut at $' + Math.abs(pnl).toFixed(0) + ' loss. Do not hold credit positions through expiration week.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    } else {
+      action = 'ROLL';
+      rationale = '21 DTE rule: ' + dte + ' DTE with loss. Still time to roll for credit.';
+      suggestion = 'Roll out 30 days, same or wider strikes. Only if net credit on the roll.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    }
+  }
+
+  // Factor 3: Loss management -- cut at 2x credit received (tastytrade rule)
+  if (isCredit && pnlPct <= -100) {
     action = 'CLOSE';
-    rationale = 'Loss exceeds 100% of entry. Position is a full loser.';
-    suggestion = 'Close and reassess. Do not add to losing positions.';
+    rationale = 'Loss hit 2x credit rule (' + Math.abs(pnlPct).toFixed(0) + '% of credit lost). Max loss discipline.';
+    suggestion = 'Close and reassess. Never add to losing credit positions.';
     return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
   }
-  if (pnlPct <= -50 && dte > 14) {
+  if (!isCredit && pnlPct <= -50) {
+    action = 'CLOSE';
+    rationale = 'Debit position down ' + Math.abs(pnlPct).toFixed(0) + '%. Cut losses.';
+    suggestion = 'Close to salvage remaining $' + ((pos.current || 0) * pos.contracts * 100).toFixed(0) + ' value.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+  if (isCredit && pnlPct <= -50 && dte > 21) {
     action = 'ROLL';
-    rationale = 'Down ' + Math.abs(pnlPct).toFixed(0) + '% but ' + dte + ' DTE remaining. Can roll for credit.';
-    suggestion = 'Roll to next month, widen strikes if needed, collect additional credit.';
-    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
-  }
-  if (pnlPct <= -50 && dte <= 14) {
-    action = 'CLOSE';
-    rationale = 'Down ' + Math.abs(pnlPct).toFixed(0) + '% with only ' + dte + ' DTE. Not enough time to recover.';
-    suggestion = 'Cut loss at $' + Math.abs(pnl).toFixed(0) + '. Preserve capital for better setups.';
+    rationale = 'Down ' + Math.abs(pnlPct).toFixed(0) + '% but ' + dte + ' DTE. Roll for credit to reduce cost basis.';
+    suggestion = 'Roll to next month, widen strikes if needed. Only if net credit.';
     return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
   }
 
