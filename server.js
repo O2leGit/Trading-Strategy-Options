@@ -463,7 +463,8 @@ app.get('/schwab/orders/:orderId', requireAuth, async (req, res) => {
 
 if (IS_CLOUD) {
   // Cloud: plain HTTP (Railway/Render handles SSL)
-  app.listen(PORT, async () => {
+  // IMPORTANT: Must bind to 0.0.0.0 for Railway's proxy to reach the app
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`\n  Options Trading Dashboard (CLOUD)`);
     console.log(`  ──────────────────────────────────`);
     console.log(`  Port: ${PORT}`);
