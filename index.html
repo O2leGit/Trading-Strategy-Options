@@ -1264,6 +1264,40 @@ body {
       </div>
     </div>
 
+    <!-- Bulk Import -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <span class="card-title">Bulk Import Positions</span>
+        <span style="font-size:0.72rem; color:var(--text-muted);">Paste from Schwab CSV export or upload file</span>
+      </div>
+      <div style="padding:0 16px 12px;">
+        <div style="display:flex; gap:12px; margin-bottom:10px;">
+          <button class="btn btn-sm" style="background:var(--cyan); color:#000; font-weight:600;" onclick="document.getElementById('bulkCsvArea').style.display='block'; document.getElementById('bulkFileInput').style.display='none';">Paste CSV</button>
+          <button class="btn btn-sm" style="background:var(--purple); color:#fff; font-weight:600;" onclick="document.getElementById('bulkFileInput').style.display='block'; document.getElementById('bulkCsvArea').style.display='none';">Upload File</button>
+          <button class="btn btn-sm" style="background:var(--bg-card-alt); color:var(--text-secondary); border:1px solid var(--border);" onclick="showBulkImportHelp()">Format Help</button>
+        </div>
+        <textarea id="bulkCsvArea" style="display:none; width:100%; height:120px; background:var(--bg-primary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-family:monospace; font-size:0.78rem; padding:8px; resize:vertical;" placeholder="Paste CSV here. Supported formats:&#10;Symbol,Type,Strike,Expiry,Contracts,Entry,Current,Strategy&#10;SPY,PUT SPREAD,520/515,2026-03-21,5,1.20,0.85,Swing"></textarea>
+        <input type="file" id="bulkFileInput" accept=".csv,.json" style="display:none; margin:8px 0; font-size:0.82rem; color:var(--text-secondary);" onchange="handleBulkFileUpload(event)">
+        <div id="bulkImportPreview" style="display:none; margin-top:10px;"></div>
+        <div style="margin-top:10px; display:flex; gap:8px;">
+          <button class="btn btn-primary" onclick="parseBulkImport()">Parse & Preview</button>
+          <button class="btn" id="bulkConfirmBtn" style="display:none; background:var(--green); color:#000; font-weight:600;" onclick="confirmBulkImport()">Confirm Import</button>
+          <span id="bulkImportStatus" style="font-size:0.78rem; color:var(--text-muted); align-self:center;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Portfolio Advisor -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <span class="card-title">Portfolio Advisor</span>
+        <button class="btn btn-sm" style="background:var(--cyan); color:#000; font-weight:600;" onclick="runPortfolioAdvisor()">Analyze Positions</button>
+      </div>
+      <div id="portfolioAdvisorContainer" style="padding:0 16px 12px;">
+        <div style="color:var(--text-muted); font-size:0.82rem; padding:20px; text-align:center;">Click "Analyze Positions" to get HOLD / CLOSE / ROLL / ADJUST recommendations for each open position based on live market data.</div>
+      </div>
+    </div>
+
     <!-- Portfolio Summary -->
     <div class="market-bar" id="portfolioSummary">
       <div class="market-card">
@@ -6176,6 +6210,501 @@ function exportPositions() {
 }
 
 renderPositions();
+
+// ===== BULK IMPORT =====
+let bulkParsedPositions = [];
+
+function showBulkImportHelp() {
+  alert('Supported CSV formats:\n\n' +
+    '1. Simple: Symbol,Type,Strike,Expiry,Contracts,Entry,Current,Strategy\n' +
+    '   Example: SPY,PUT SPREAD,520/515,2026-03-21,5,1.20,0.85,Swing\n\n' +
+    '2. Schwab Export: Symbol,Description,Qty,Price,Value columns\n' +
+    '   (auto-detected from Schwab CSV exports)\n\n' +
+    '3. JSON: Array of objects with fields:\n' +
+    '   { symbol, type, shortStrike, longStrike, expiry, contracts, entryCredit, currentPrice, strategy, source }\n\n' +
+    'For spreads, use slash notation in Strike: 520/515\n' +
+    'Types: CALL, PUT, CALL SPREAD, PUT SPREAD, IRON CONDOR, STRADDLE, STRANGLE');
+}
+
+function handleBulkFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    if (file.name.endsWith('.json')) {
+      try {
+        const data = JSON.parse(text);
+        bulkParsedPositions = (Array.isArray(data) ? data : [data]).map(d => ({
+          id: Date.now() + Math.random(),
+          symbol: (d.symbol || '').toUpperCase(),
+          type: d.type || 'PUT SPREAD',
+          strike: d.shortStrike ? d.shortStrike + (d.longStrike ? '/' + d.longStrike : '') : d.strike || 0,
+          shortStrike: d.shortStrike || null,
+          longStrike: d.longStrike || null,
+          expiry: d.expiry || '',
+          contracts: d.contracts || 1,
+          entry: d.entryCredit || d.entry || 0,
+          current: d.currentPrice || d.current || 0,
+          strategy: d.strategy || 'Swing',
+          notes: d.notes || '',
+          source: d.source || 'import',
+          dateAdded: new Date().toISOString()
+        }));
+        renderBulkPreview();
+      } catch(err) {
+        document.getElementById('bulkImportStatus').textContent = 'JSON parse error: ' + err.message;
+      }
+    } else {
+      document.getElementById('bulkCsvArea').style.display = 'block';
+      document.getElementById('bulkCsvArea').value = text;
+      document.getElementById('bulkImportStatus').textContent = 'File loaded. Click "Parse & Preview".';
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseBulkImport() {
+  const raw = document.getElementById('bulkCsvArea').value.trim();
+  if (!raw) { document.getElementById('bulkImportStatus').textContent = 'Nothing to parse.'; return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  bulkParsedPositions = [];
+
+  // Detect format: check if first line is a header
+  let startIdx = 0;
+  const firstLine = lines[0].toLowerCase();
+  if (firstLine.includes('symbol') || firstLine.includes('description') || firstLine.includes('type')) {
+    startIdx = 1; // skip header
+  }
+
+  // Detect Schwab format: has "Description" column with option contract details
+  const isSchwab = firstLine.includes('description') && firstLine.includes('qty');
+
+  for (let i = startIdx; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 3) continue;
+
+    let pos;
+    if (isSchwab) {
+      pos = parseSchwabRow(cols, firstLine);
+    } else {
+      pos = parseStandardRow(cols);
+    }
+    if (pos && pos.symbol) {
+      bulkParsedPositions.push(pos);
+    }
+  }
+
+  if (bulkParsedPositions.length === 0) {
+    document.getElementById('bulkImportStatus').textContent = 'No valid positions found. Check format.';
+    return;
+  }
+
+  renderBulkPreview();
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQuotes = !inQuotes; continue; }
+    if (line[i] === ',' && !inQuotes) { result.push(current.trim()); current = ''; continue; }
+    current += line[i];
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseSchwabRow(cols, header) {
+  // Schwab CSV: Symbol, Description, Qty, Price, Value, ...
+  const headerCols = header.split(',').map(h => h.trim().toLowerCase());
+  const symIdx = headerCols.indexOf('symbol');
+  const descIdx = headerCols.findIndex(h => h.includes('description'));
+  const qtyIdx = headerCols.findIndex(h => h === 'qty' || h === 'quantity');
+  const priceIdx = headerCols.findIndex(h => h === 'price' || h === 'market value');
+
+  const symbol = (cols[symIdx >= 0 ? symIdx : 0] || '').toUpperCase().replace(/\s/g, '');
+  const desc = cols[descIdx >= 0 ? descIdx : 1] || '';
+  const qty = Math.abs(parseInt(cols[qtyIdx >= 0 ? qtyIdx : 2]) || 1);
+  const price = parseFloat((cols[priceIdx >= 0 ? priceIdx : 3] || '0').replace(/[$,]/g, '')) || 0;
+
+  // Parse Schwab option description: "SPY 03/21/2026 520.00 P"
+  const optMatch = desc.match(/(\w+)\s+(\d{2}\/\d{2}\/\d{4})\s+([\d.]+)\s+(P|C|PUT|CALL)/i);
+  if (optMatch) {
+    const type = optMatch[4].toUpperCase().startsWith('P') ? 'PUT' : 'CALL';
+    const expiry = optMatch[2].replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$1-$2');
+    return {
+      id: Date.now() + Math.random(),
+      symbol: optMatch[1].toUpperCase(),
+      type: type,
+      strike: parseFloat(optMatch[3]),
+      expiry: expiry,
+      contracts: qty,
+      entry: price,
+      current: price,
+      strategy: 'Swing',
+      notes: 'Schwab import',
+      source: 'schwab',
+      dateAdded: new Date().toISOString()
+    };
+  }
+
+  // Non-option equity row, skip
+  return null;
+}
+
+function parseStandardRow(cols) {
+  // Standard: Symbol,Type,Strike,Expiry,Contracts,Entry,Current,Strategy
+  const symbol = (cols[0] || '').toUpperCase();
+  const type = (cols[1] || 'PUT').toUpperCase();
+  const strikeRaw = cols[2] || '0';
+  const expiry = cols[3] || '';
+  const contracts = parseInt(cols[4]) || 1;
+  const entry = parseFloat(cols[5]) || 0;
+  const current = parseFloat(cols[6]) || entry;
+  const strategy = cols[7] || 'Swing';
+
+  let shortStrike = null, longStrike = null, strike = parseFloat(strikeRaw);
+  if (strikeRaw.includes('/')) {
+    const parts = strikeRaw.split('/');
+    shortStrike = parseFloat(parts[0]);
+    longStrike = parseFloat(parts[1]);
+    strike = shortStrike;
+  }
+
+  return {
+    id: Date.now() + Math.random(),
+    symbol, type, strike, shortStrike, longStrike,
+    expiry, contracts, entry, current, strategy,
+    notes: '', source: 'import',
+    dateAdded: new Date().toISOString()
+  };
+}
+
+function renderBulkPreview() {
+  const container = document.getElementById('bulkImportPreview');
+  container.style.display = 'block';
+  document.getElementById('bulkConfirmBtn').style.display = 'inline-block';
+  document.getElementById('bulkImportStatus').textContent = bulkParsedPositions.length + ' positions parsed.';
+
+  container.innerHTML = '<table style="width:100%; font-size:0.78rem; border-collapse:collapse;">' +
+    '<thead><tr style="color:var(--text-muted); font-size:0.7rem;">' +
+    '<th style="padding:4px 6px; text-align:left;">Symbol</th>' +
+    '<th style="padding:4px 6px; text-align:left;">Type</th>' +
+    '<th style="padding:4px 6px; text-align:right;">Strike</th>' +
+    '<th style="padding:4px 6px; text-align:left;">Expiry</th>' +
+    '<th style="padding:4px 6px; text-align:center;">Qty</th>' +
+    '<th style="padding:4px 6px; text-align:right;">Entry</th>' +
+    '<th style="padding:4px 6px; text-align:right;">Current</th>' +
+    '<th style="padding:4px 6px; text-align:left;">Strategy</th>' +
+    '<th style="padding:4px 6px; text-align:left;">Source</th>' +
+    '</tr></thead><tbody>' +
+    bulkParsedPositions.map(p =>
+      '<tr style="border-top:1px solid var(--border);">' +
+      '<td style="padding:4px 6px; font-weight:600;">' + p.symbol + '</td>' +
+      '<td style="padding:4px 6px;">' + p.type + '</td>' +
+      '<td style="padding:4px 6px; text-align:right;">' + (p.shortStrike ? p.shortStrike + '/' + p.longStrike : p.strike) + '</td>' +
+      '<td style="padding:4px 6px;">' + (p.expiry || '--') + '</td>' +
+      '<td style="padding:4px 6px; text-align:center;">' + p.contracts + '</td>' +
+      '<td style="padding:4px 6px; text-align:right;">$' + (p.entry||0).toFixed(2) + '</td>' +
+      '<td style="padding:4px 6px; text-align:right;">$' + (p.current||0).toFixed(2) + '</td>' +
+      '<td style="padding:4px 6px;">' + p.strategy + '</td>' +
+      '<td style="padding:4px 6px; font-size:0.7rem; color:var(--text-muted);">' + (p.source || 'manual') + '</td>' +
+      '</tr>'
+    ).join('') +
+    '</tbody></table>';
+}
+
+function confirmBulkImport() {
+  if (bulkParsedPositions.length === 0) return;
+  positions = positions.concat(bulkParsedPositions);
+  savePositions();
+  renderPositions();
+  document.getElementById('bulkImportStatus').textContent = bulkParsedPositions.length + ' positions imported successfully!';
+  document.getElementById('bulkImportStatus').style.color = 'var(--green)';
+  document.getElementById('bulkImportPreview').style.display = 'none';
+  document.getElementById('bulkConfirmBtn').style.display = 'none';
+  document.getElementById('bulkCsvArea').value = '';
+  bulkParsedPositions = [];
+  setTimeout(() => {
+    document.getElementById('bulkImportStatus').style.color = 'var(--text-muted)';
+    document.getElementById('bulkImportStatus').textContent = '';
+  }, 5000);
+}
+
+// ===== PORTFOLIO ADVISOR =====
+function runPortfolioAdvisor() {
+  const container = document.getElementById('portfolioAdvisorContainer');
+  if (positions.length === 0) {
+    container.innerHTML = '<div style="color:var(--yellow); font-size:0.82rem; padding:20px; text-align:center;">No positions to analyze. Add positions manually or use Bulk Import above.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div style="color:var(--cyan); font-size:0.82rem; padding:20px; text-align:center;">Analyzing ' + positions.length + ' positions against live market data...</div>';
+
+  const recommendations = positions.map(pos => analyzePosition(pos));
+
+  // Sort: CLOSE first (highest urgency), then ROLL, then ADJUST, then HOLD
+  const urgencyOrder = { CLOSE: 0, ROLL: 1, ADJUST: 2, HOLD: 3 };
+  recommendations.sort((a, b) => (urgencyOrder[a.action] || 3) - (urgencyOrder[b.action] || 3));
+
+  // Summary stats
+  const counts = { HOLD: 0, CLOSE: 0, ROLL: 0, ADJUST: 0 };
+  recommendations.forEach(r => counts[r.action] = (counts[r.action] || 0) + 1);
+
+  const totalPnL = positions.reduce((s, p) => s + ((p.current || 0) - p.entry) * p.contracts * 100, 0);
+
+  container.innerHTML =
+    '<div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">' +
+      '<div style="background:var(--green)22; border:1px solid var(--green); border-radius:6px; padding:8px 14px; text-align:center;">' +
+        '<div style="font-size:0.7rem; color:var(--green);">HOLD</div><div style="font-size:1.3rem; font-weight:700; color:var(--green);">' + counts.HOLD + '</div></div>' +
+      '<div style="background:var(--red)22; border:1px solid var(--red); border-radius:6px; padding:8px 14px; text-align:center;">' +
+        '<div style="font-size:0.7rem; color:var(--red);">CLOSE</div><div style="font-size:1.3rem; font-weight:700; color:var(--red);">' + counts.CLOSE + '</div></div>' +
+      '<div style="background:var(--yellow)22; border:1px solid var(--yellow); border-radius:6px; padding:8px 14px; text-align:center;">' +
+        '<div style="font-size:0.7rem; color:var(--yellow);">ROLL</div><div style="font-size:1.3rem; font-weight:700; color:var(--yellow);">' + counts.ROLL + '</div></div>' +
+      '<div style="background:var(--cyan)22; border:1px solid var(--cyan); border-radius:6px; padding:8px 14px; text-align:center;">' +
+        '<div style="font-size:0.7rem; color:var(--cyan);">ADJUST</div><div style="font-size:1.3rem; font-weight:700; color:var(--cyan);">' + counts.ADJUST + '</div></div>' +
+      '<div style="background:var(--bg-card-alt); border:1px solid var(--border); border-radius:6px; padding:8px 14px; text-align:center;">' +
+        '<div style="font-size:0.7rem; color:var(--text-muted);">Portfolio P&L</div><div style="font-size:1.3rem; font-weight:700; color:' + (totalPnL >= 0 ? 'var(--green)' : 'var(--red)') + ';">$' + totalPnL.toFixed(0) + '</div></div>' +
+    '</div>' +
+    '<table style="width:100%; font-size:0.8rem; border-collapse:collapse;">' +
+    '<thead><tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase;">' +
+    '<th style="padding:6px 8px; text-align:left;">Action</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Symbol</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Position</th>' +
+    '<th style="padding:6px 8px; text-align:right;">P&L</th>' +
+    '<th style="padding:6px 8px; text-align:center;">DTE</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Rationale</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Suggested Action</th>' +
+    '</tr></thead><tbody>' +
+    recommendations.map(r => {
+      const actionColors = { HOLD: 'var(--green)', CLOSE: 'var(--red)', ROLL: 'var(--yellow)', ADJUST: 'var(--cyan)' };
+      const color = actionColors[r.action] || 'var(--text-primary)';
+      return '<tr style="border-top:1px solid var(--border);">' +
+        '<td style="padding:8px;"><span style="background:' + color + '22; color:' + color + '; padding:2px 8px; border-radius:4px; font-weight:700; font-size:0.75rem;">' + r.action + '</span></td>' +
+        '<td style="padding:8px; font-weight:600;">' + r.symbol + '</td>' +
+        '<td style="padding:8px; font-size:0.75rem;">' + r.posDesc + '</td>' +
+        '<td style="padding:8px; text-align:right; color:' + (r.pnl >= 0 ? 'var(--green)' : 'var(--red)') + '; font-weight:600;">$' + r.pnl.toFixed(0) + ' (' + r.pnlPct.toFixed(0) + '%)</td>' +
+        '<td style="padding:8px; text-align:center; color:' + (r.dte <= 7 ? 'var(--red)' : r.dte <= 21 ? 'var(--yellow)' : 'var(--text-primary)') + ';">' + r.dte + '</td>' +
+        '<td style="padding:8px; font-size:0.73rem; color:var(--text-secondary); max-width:250px;">' + r.rationale + '</td>' +
+        '<td style="padding:8px; font-size:0.73rem; color:' + color + ';">' + r.suggestion + '</td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table>' +
+    '<div style="font-size:0.68rem; color:var(--text-muted); padding:8px 0; text-align:right;">Analyzed at ' + new Date().toLocaleTimeString() + ' | VIX: ' + MARKET.vix.toFixed(1) + ' | Regime: ' + MARKET.regimeScore + '/100</div>';
+}
+
+function analyzePosition(pos) {
+  const pnl = ((pos.current || 0) - pos.entry) * pos.contracts * 100;
+  const pnlPct = pos.entry > 0 ? ((pos.current || 0) / pos.entry - 1) * 100 : 0;
+  const dte = pos.expiry ? Math.ceil((new Date(pos.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
+  const isCredit = pos.type.includes('SPREAD') || pos.type.includes('CONDOR') || pos.type.includes('STRANGLE');
+  const posDesc = pos.type + ' ' + (pos.shortStrike ? pos.shortStrike + '/' + pos.longStrike : pos.strike) + ' ' + (pos.expiry || '');
+
+  let action = 'HOLD';
+  let rationale = '';
+  let suggestion = '';
+
+  // Factor 1: DTE urgency
+  if (dte <= 0) {
+    action = 'CLOSE';
+    rationale = 'Expired or expiring today.';
+    suggestion = 'Close immediately at market.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+
+  // Factor 2: Profit target hit (credit trades)
+  if (isCredit && pos.entry > 0 && pos.current !== undefined) {
+    const profitPct = (1 - (pos.current / pos.entry)) * 100;
+    if (profitPct >= 75) {
+      action = 'CLOSE';
+      rationale = 'Captured ' + profitPct.toFixed(0) + '% of max profit. Remaining premium not worth gamma risk.';
+      suggestion = 'Close for $' + ((pos.entry - pos.current) * pos.contracts * 100).toFixed(0) + ' profit. Redeploy capital.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    }
+    if (profitPct >= 50 && dte <= 7) {
+      action = 'CLOSE';
+      rationale = '50%+ profit with <7 DTE. Gamma risk increasing sharply.';
+      suggestion = 'Close to lock in $' + pnl.toFixed(0) + ' profit.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    }
+  }
+
+  // Factor 3: Loss management
+  if (pnlPct <= -100) {
+    action = 'CLOSE';
+    rationale = 'Loss exceeds 100% of entry. Position is a full loser.';
+    suggestion = 'Close and reassess. Do not add to losing positions.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+  if (pnlPct <= -50 && dte > 14) {
+    action = 'ROLL';
+    rationale = 'Down ' + Math.abs(pnlPct).toFixed(0) + '% but ' + dte + ' DTE remaining. Can roll for credit.';
+    suggestion = 'Roll to next month, widen strikes if needed, collect additional credit.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+  if (pnlPct <= -50 && dte <= 14) {
+    action = 'CLOSE';
+    rationale = 'Down ' + Math.abs(pnlPct).toFixed(0) + '% with only ' + dte + ' DTE. Not enough time to recover.';
+    suggestion = 'Cut loss at $' + Math.abs(pnl).toFixed(0) + '. Preserve capital for better setups.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+
+  // Factor 4: Regime shift check
+  const regimeScore = MARKET.regimeScore;
+  if (regimeScore < 30 && isCredit) {
+    if (pnl >= 0) {
+      action = 'CLOSE';
+      rationale = 'Crisis regime (score: ' + regimeScore + '). Close profitable credit positions to reduce exposure.';
+      suggestion = 'Close for $' + pnl.toFixed(0) + ' profit. Move to defensive positions.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    } else {
+      action = 'ADJUST';
+      rationale = 'Crisis regime. Position is underwater, consider hedging.';
+      suggestion = 'Buy protective puts or reduce size by closing ' + Math.ceil(pos.contracts / 2) + ' contracts.';
+      return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+    }
+  }
+
+  // Factor 5: VIX spike check
+  if (MARKET.vix > 30 && MARKET.vixChange > 2 && isCredit) {
+    action = 'ADJUST';
+    rationale = 'VIX spiking (' + MARKET.vix.toFixed(1) + ', up ' + MARKET.vixChange.toFixed(1) + '). Credit positions face expansion risk.';
+    suggestion = 'Consider buying wings to cap risk, or reduce size.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+
+  // Factor 6: Roll opportunity (profitable + close to expiry)
+  if (dte <= 14 && dte > 3 && pnl > 0 && isCredit) {
+    action = 'ROLL';
+    rationale = 'Profitable with ' + dte + ' DTE. Rolling captures theta decay in next cycle.';
+    suggestion = 'Roll to ' + (dte + 28) + '-DTE same strikes for additional $' + (pos.entry * 0.3 * pos.contracts * 100).toFixed(0) + ' est. credit.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+
+  // Factor 7: Theta decay check for debit positions
+  if (!isCredit && dte <= 14 && pnlPct < 20) {
+    action = 'CLOSE';
+    rationale = 'Debit position with ' + dte + ' DTE and only ' + pnlPct.toFixed(0) + '% gain. Theta accelerating.';
+    suggestion = 'Close to salvage remaining value before rapid time decay.';
+    return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+  }
+
+  // Default: HOLD with context
+  const holdReasons = [];
+  if (pnl > 0) holdReasons.push('Profitable (+$' + pnl.toFixed(0) + ')');
+  if (dte > 21) holdReasons.push('Plenty of time (' + dte + ' DTE)');
+  if (regimeScore >= 50) holdReasons.push('Favorable regime (' + regimeScore + '/100)');
+  if (isCredit && pnlPct > -25) holdReasons.push('Within normal range');
+  rationale = holdReasons.length > 0 ? holdReasons.join('. ') + '.' : 'Position is within acceptable parameters.';
+  suggestion = 'Monitor. Next review at ' + (pnl > 0 ? '50% profit target or ' : '') + (dte > 21 ? '14 DTE.' : 'daily.');
+
+  return { action, symbol: pos.symbol, posDesc, pnl, pnlPct, dte: Math.max(0, dte), rationale, suggestion };
+}
+
+// ===== PORTFOLIO-AWARE SIGNAL GENERATION =====
+function getPortfolioContext() {
+  // Aggregate current portfolio state for signal filtering
+  const openPos = positions.filter(p => {
+    const dte = p.expiry ? Math.ceil((new Date(p.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
+    return dte > 0;
+  });
+
+  // Symbol concentration
+  const symbolCounts = {};
+  openPos.forEach(p => { symbolCounts[p.symbol] = (symbolCounts[p.symbol] || 0) + 1; });
+
+  // Strategy concentration
+  const strategyCounts = {};
+  openPos.forEach(p => {
+    const strat = p.type.includes('SPREAD') ? 'credit_spread' : p.type.includes('CONDOR') ? 'iron_condor' : p.type.includes('CALL') ? 'long_call' : 'other';
+    strategyCounts[strat] = (strategyCounts[strat] || 0) + 1;
+  });
+
+  // Directional bias
+  let netDelta = 0;
+  openPos.forEach(p => {
+    const multiplier = p.contracts * 100;
+    if (p.type.includes('PUT') && !p.type.includes('SPREAD')) netDelta -= 0.3 * multiplier;
+    else if (p.type.includes('CALL') && !p.type.includes('SPREAD')) netDelta += 0.3 * multiplier;
+    else if (p.type === 'PUT SPREAD') netDelta += 0.1 * multiplier; // short put spread is bullish
+    else if (p.type === 'CALL SPREAD') netDelta -= 0.1 * multiplier; // short call spread is bearish
+    else if (p.type === 'IRON CONDOR') netDelta += 0; // neutral
+  });
+
+  // Total capital at risk
+  const totalRisk = openPos.reduce((sum, p) => sum + p.entry * p.contracts * 100, 0);
+
+  return {
+    totalPositions: openPos.length,
+    symbolCounts,
+    strategyCounts,
+    netDelta,
+    totalRisk,
+    hasPosition: (sym) => (symbolCounts[sym] || 0) > 0,
+    symbolExposure: (sym) => symbolCounts[sym] || 0,
+    isOverconcentrated: (sym) => (symbolCounts[sym] || 0) >= 3,
+    isDirectionallySkewed: () => Math.abs(netDelta) > 500,
+    capitalUtilization: (accountSize) => totalRisk / (accountSize || 100000)
+  };
+}
+
+// Wrap original generateTopTrades to add portfolio awareness
+const _originalGenerateTopTrades = generateTopTrades;
+function generateTopTradesWithPortfolio() {
+  _originalGenerateTopTrades();
+
+  // After rendering, add portfolio context warnings
+  const container = document.getElementById('topTradesContainer');
+  if (!container || positions.length === 0) return;
+
+  const ctx = getPortfolioContext();
+  const warnings = [];
+
+  // Check for over-concentration
+  Object.entries(ctx.symbolCounts).forEach(([sym, count]) => {
+    if (count >= 3) warnings.push('HIGH EXPOSURE: ' + count + ' positions in ' + sym);
+  });
+
+  // Check directional skew
+  if (ctx.isDirectionallySkewed()) {
+    warnings.push('DIRECTIONAL SKEW: Net delta ' + (ctx.netDelta > 0 ? '+' : '') + ctx.netDelta.toFixed(0) + '. Consider balancing with ' + (ctx.netDelta > 0 ? 'bearish' : 'bullish') + ' trades.');
+  }
+
+  // Check capital utilization
+  const utilization = ctx.capitalUtilization(100000);
+  if (utilization > 0.5) {
+    warnings.push('CAPITAL: ' + (utilization * 100).toFixed(0) + '% deployed. Reduce new position sizing.');
+  }
+
+  if (warnings.length > 0) {
+    const warningHtml = '<div style="background:var(--yellow)11; border:1px solid var(--yellow)44; border-radius:6px; padding:8px 12px; margin-bottom:10px;">' +
+      '<div style="font-size:0.72rem; font-weight:700; color:var(--yellow); margin-bottom:4px;">PORTFOLIO ALERTS</div>' +
+      warnings.map(w => '<div style="font-size:0.73rem; color:var(--text-secondary); padding:2px 0;">- ' + w + '</div>').join('') +
+      '</div>';
+    container.insertAdjacentHTML('afterbegin', warningHtml);
+  }
+
+  // Mark existing positions in the table
+  const rows = container.querySelectorAll('tbody tr');
+  rows.forEach(row => {
+    const tickerCell = row.querySelector('td:nth-child(3)');
+    if (tickerCell) {
+      const sym = tickerCell.textContent.trim().split(' ')[0];
+      if (ctx.hasPosition(sym)) {
+        const count = ctx.symbolExposure(sym);
+        const badge = count >= 3 ? '<span style="background:var(--red)33;color:var(--red);font-size:0.6rem;padding:1px 4px;border-radius:3px;margin-left:4px;">+' + count + ' OPEN</span>'
+          : '<span style="background:var(--yellow)33;color:var(--yellow);font-size:0.6rem;padding:1px 4px;border-radius:3px;margin-left:4px;">+' + count + ' open</span>';
+        tickerCell.innerHTML += badge;
+      }
+    }
+  });
+}
+
+// Override generateTopTrades with portfolio-aware version
+generateTopTrades = generateTopTradesWithPortfolio;
 
 // ===== GREEKS CALCULATOR (Black-Scholes) =====
 function normalCDF(x) {
