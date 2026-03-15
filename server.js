@@ -164,6 +164,36 @@ app.post('/clients/api/generate-snapshot', async (req, res) => {
   }
 });
 
+// ─── Yahoo Finance Proxy (avoids CORS issues) ──────────────────
+app.get('/api/yahoo/chart/:symbol', async (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const range = req.query.range || '1d';
+    const interval = req.query.interval || '5m';
+    const includePrePost = req.query.includePrePost || 'true';
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=${interval}&includePrePost=${includePrePost}`;
+    const r = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    res.json(r.data);
+  } catch (e) {
+    res.status(e.response?.status || 500).json({ error: e.message });
+  }
+});
+
+app.get('/api/yahoo/options/:symbol', async (req, res) => {
+  try {
+    const symbol = req.params.symbol;
+    const url = `https://query1.finance.yahoo.com/v7/finance/options/${symbol}`;
+    const r = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    res.json(r.data);
+  } catch (e) {
+    res.status(e.response?.status || 500).json({ error: e.message });
+  }
+});
+
 // ─── Schwab Configuration ──────────────────────────────────────
 const CONFIG_FILE = path.join(__dirname, 'schwab_config.json');
 const TOKENS_FILE = path.join(__dirname, 'schwab_tokens.json');
