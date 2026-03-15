@@ -19,7 +19,7 @@ console.log(`Environment: ${IS_CLOUD ? 'CLOUD' : 'LOCAL'}, certs: ${certExists},
 if (IS_CLOUD && SITE_PASSWORD) {
   app.use((req, res, next) => {
     // Skip auth for callback (Schwab redirect) and health check
-    if (req.path === '/callback' || req.path === '/health') return next();
+    if (req.path === '/callback' || req.path === '/health' || req.path.startsWith('/api/')) return next();
     // Check cookie
     if (req.headers.cookie && req.headers.cookie.includes('auth=granted')) return next();
     // Check if submitting password
