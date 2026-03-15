@@ -178,6 +178,12 @@ All proxies bypass CORS issues and inject API keys from env vars:
 - **Cloud credentials**: From `SCHWAB_APP_KEY` / `SCHWAB_APP_SECRET` env vars
 - **Local credentials**: From `schwab_config.json` file
 
+## Task Management
+- **vibe-kanban**: For complex, multi-step projects, use `npx vibe-kanban` to create and manage a kanban board for tracking tasks
+- Launch the board: `npx vibe-kanban` (opens in browser)
+- Use the MCP server mode or CLI to create/update tasks programmatically
+- Use this whenever a task has 5+ steps, multiple files changing, or spans multiple sessions
+
 ## Design Decisions
 - No disclaimers (personal use only)
 - Aggressive, high-probability plays displayed

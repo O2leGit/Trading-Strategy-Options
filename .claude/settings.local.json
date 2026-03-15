@@ -137,7 +137,10 @@
       "WebFetch(domain:www.alphavantage.co)",
       "Bash(railway version:*)",
       "Bash(railway whoami:*)",
-      "Bash(railway login:*)"
+      "Bash(railway login:*)",
+      "Bash(git tag:*)",
+      "Bash(npx vibe-kanban:*)",
+      "Bash(npx get-shit-done-cc:*)"
     ]
   }
 }
