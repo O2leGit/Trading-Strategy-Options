@@ -164,6 +164,15 @@ app.post('/clients/api/generate-snapshot', async (req, res) => {
   }
 });
 
+// ─── Server-provided API keys (from env vars) ──────────────────
+app.get('/api/keys', (req, res) => {
+  res.json({
+    finnhub: process.env.FINNHUB_KEY || '',
+    twelve: process.env.TWELVE_DATA_KEY || '',
+    polygon: process.env.POLYGON_KEY || ''
+  });
+});
+
 // ─── Yahoo Finance Proxy (avoids CORS issues) ──────────────────
 app.get('/api/yahoo/chart/:symbol', async (req, res) => {
   try {
