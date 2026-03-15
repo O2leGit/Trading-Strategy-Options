@@ -814,6 +814,11 @@ body {
         <div class="value" id="val-vix" style="color:var(--red)">—</div>
         <div class="change" id="chg-vix">Loading...</div>
       </div>
+      <div class="market-card" id="card-vvix">
+        <div class="label">VVIX</div>
+        <div class="value" id="val-vvix" style="color:var(--purple)">—</div>
+        <div class="change" id="chg-vvix">Loading...</div>
+      </div>
       <div class="market-card" id="card-oil">
         <div class="label">WTI Crude</div>
         <div class="value" id="val-oil" style="color:var(--orange)">—</div>
@@ -848,71 +853,64 @@ body {
       </div>
     </div>
 
+    <!-- ===== TOP TRADES PANEL: Unified prioritized recommendations ===== -->
+    <div class="card" style="border:1px solid var(--cyan); margin-bottom:20px;">
+      <div class="card-header">
+        <span class="card-title" style="color:var(--cyan);">Top Trades Right Now</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="badge" id="topTradesRegime" style="font-size:0.7rem;"></span>
+          <button class="quick-btn" onclick="generateTopTrades()" style="padding:4px 14px; font-size:0.78rem;">Scan All Strategies</button>
+        </div>
+      </div>
+      <div id="topTradesContainer" style="padding:4px 0;">
+        <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
+          Click "Scan All Strategies" or wait for auto-scan to populate ranked trade recommendations across all 9 strategies.
+        </div>
+      </div>
+    </div>
+
+    <!-- GEX Dashboard -->
+    <div class="card" id="gexDashboardCard">
+      <div class="card-header">
+        <span class="card-title">Gamma Exposure (GEX) Dashboard</span>
+        <span class="badge badge-purple" id="gexRegimeBadge">LOADING</span>
+      </div>
+      <div id="gexDashboard" style="font-size:0.85rem;">
+        <div style="color:var(--text-muted);padding:20px;text-align:center;">GEX calculates from options chain data. Scanning...</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+    <!-- Unusual Options Flow (LIVE) -->
     <div class="card">
       <div class="card-header">
-        <span class="card-title">Unusual Options Activity (Today)</span>
-        <span class="badge badge-purple">SMART MONEY</span>
+        <span class="card-title">Unusual Options Flow</span>
+        <span class="badge badge-purple" id="flowBadge">LIVE SCAN</span>
       </div>
-      <table class="position-table">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Type</th>
-            <th>Strike</th>
-            <th>Expiry</th>
-            <th>Volume</th>
-            <th>P/C Ratio</th>
-            <th>Signal</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="font-weight:600;">PINS</td>
-            <td><span class="badge badge-green">CALL</span></td>
-            <td>$21.00</td>
-            <td>Apr 17</td>
-            <td style="font-weight:600;">32,000</td>
-            <td>0.15</td>
-            <td class="up">Bullish Block</td>
-          </tr>
-          <tr>
-            <td style="font-weight:600;">TEL</td>
-            <td><span class="badge badge-red">PUT</span></td>
-            <td>$190.00</td>
-            <td>Apr 17</td>
-            <td style="font-weight:600;">1,670</td>
-            <td>15.0</td>
-            <td class="down">Bearish Block</td>
-          </tr>
-          <tr>
-            <td style="font-weight:600;">GIII</td>
-            <td><span class="badge badge-red">PUT</span></td>
-            <td>$25.00</td>
-            <td>Mar 20</td>
-            <td style="font-weight:600;">528</td>
-            <td>10.0</td>
-            <td class="down">Hedging</td>
-          </tr>
-          <tr>
-            <td style="font-weight:600;">EA</td>
-            <td><span class="badge badge-blue">SPREAD</span></td>
-            <td>Various</td>
-            <td>Apr</td>
-            <td style="font-weight:600;">High</td>
-            <td>--</td>
-            <td style="color:var(--purple);">Unusual Spread</td>
-          </tr>
-          <tr>
-            <td style="font-weight:600;">MRVL</td>
-            <td><span class="badge badge-blue">SPREAD</span></td>
-            <td>Various</td>
-            <td>Apr</td>
-            <td style="font-weight:600;">High</td>
-            <td>--</td>
-            <td style="color:var(--purple);">Unusual Spread</td>
-          </tr>
-        </tbody>
-      </table>
+      <div id="unusualFlowTable" style="font-size:0.82rem;">
+        <div style="color:var(--text-muted);padding:20px;text-align:center;">Scanning options chains for unusual activity...</div>
+      </div>
+    </div>
+
+    <!-- Portfolio Greeks Summary -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Portfolio Greeks Summary</span>
+        <span class="badge badge-cyan">AGGREGATED</span>
+      </div>
+      <div id="portfolioGreeksSummary" style="font-size:0.85rem; line-height:1.8;">
+        <div style="color:var(--text-muted);padding:20px;text-align:center;">Add positions in Position Tracker to see aggregate Greeks.</div>
+      </div>
+    </div>
+    </div>
+
+    <!-- Regime Transition Alert -->
+    <div id="regimeTransitionAlert" style="display:none;" class="card">
+      <div class="card-header">
+        <span class="card-title">REGIME TRANSITION ALERT</span>
+        <span class="badge badge-red">ACTION NEEDED</span>
+      </div>
+      <div id="regimeTransitionContent" style="font-size:0.85rem;"></div>
     </div>
   </div>
 
@@ -3168,6 +3166,23 @@ const MARKET = {
   regimeAdvice: '',         // human-readable regime trading advice
   technicals: {},           // { rsi, macd, macdSignal, macdHist, bbUpper, bbMiddle, bbLower }
   sentiment: { score: 0, label: 'NEUTRAL', articles: [] }, // Alpha Vantage sentiment
+  // VVIX tracking (volatility of volatility)
+  vvix: 0, vvixChange: 0,
+  vvixVixRatio: 0,          // VVIX/VIX ratio - >7 = danger zone
+  vvixSignal: '',           // human-readable VVIX signal
+  // Expected Move Accuracy Tracker
+  expectedMoveHistory: JSON.parse(localStorage.getItem('expectedMoveHistory') || '[]'),
+  expectedMoveAccuracy: 0,  // rolling % of times actual move was within expected
+  varianceRiskPremium: 0,   // avg overestimate % (IV - RV edge)
+  // Realized volatility tracking
+  spxCloseHistory: JSON.parse(localStorage.getItem('spxCloseHistory') || '[]'),
+  realizedVol20d: 0,        // 20-day realized volatility (annualized)
+  vrp: 0,                   // Variance Risk Premium: VIX - realizedVol
+  // Per-ticker IV tracking
+  tickerIVHistory: JSON.parse(localStorage.getItem('tickerIVHistory') || '{}'),
+  // Previous regime for transition detection
+  previousRegime: 'unknown',
+  regimeTransitionAlert: null,
   lastUpdate: null,
   sources: {},
   expectedMove1d: function() { return this.spx * (this.vix/100) * Math.sqrt(1/365); },
@@ -3225,6 +3240,7 @@ async function fetchYahooQuotes() {
     dow: '%5EDJI',     // Dow Jones
     nasdaq: '%5EIXIC', // Nasdaq
     vix: '%5EVIX',     // VIX
+    vvix: '%5EVVIX',   // VVIX (Volatility of Volatility)
     oil: 'CL%3DF',    // WTI Crude Futures
     tsy: '%5ETNX'      // 10Y Treasury Yield
   };
@@ -3528,6 +3544,34 @@ function updateMarketCards(data) {
       MARKET.regimeAdvice = 'CRISIS: No new short premium. Close vulnerable positions. Buy VIX calls or deep OTM puts for portfolio insurance.';
     }
   }
+  // VVIX (Volatility of Volatility)
+  if (data.vvix) {
+    updateCard('vvix', data.vvix.price, data.vvix.change, data.vvix.changePct);
+    MARKET.vvix = data.vvix.price;
+    MARKET.vvixChange = data.vvix.changePct;
+    MARKET.sources.vvix = 'yahoo';
+    // VVIX/VIX ratio: >7 = danger zone, 5-6 = tension building
+    if (MARKET.vix > 0) {
+      MARKET.vvixVixRatio = MARKET.vvix / MARKET.vix;
+    }
+    // VVIX signal interpretation
+    if (MARKET.vvix > 150) {
+      MARKET.vvixSignal = 'EXTREME STRESS: Rare acute panic. VIX likely to reverse.';
+    } else if (MARKET.vvix > 125) {
+      MARKET.vvixSignal = 'SELL VOL: VIX falls 80%+ of the time from here. Premium selling opportunity.';
+    } else if (MARKET.vvix > 100) {
+      MARKET.vvixSignal = 'ELEVATED: Hedging demand rising. Monitor for VIX spike.';
+    } else if (MARKET.vvix > 85) {
+      MARKET.vvixSignal = 'NORMAL: Standard vol-of-vol range.';
+    } else {
+      MARKET.vvixSignal = 'COMPLACENT: Buy vol protection while cheap.';
+    }
+    // Divergence detection: VVIX rising + VIX flat = smart money tell
+    if (MARKET.vvixChange > 5 && Math.abs(MARKET.vixChange) < 2) {
+      MARKET.vvixSignal = 'DIVERGENCE: VVIX rising but VIX flat. Smart money pre-positioning for vol spike.';
+    }
+  }
+
   if (data.oil) {
     updateCard('oil', data.oil.price, data.oil.change, data.oil.changePct, '$');
     MARKET.oil = data.oil.price;
@@ -3544,7 +3588,302 @@ function updateMarketCards(data) {
     MARKET.overnightGap = MARKET.spxChange;
   }
 
+  // Track expected move accuracy (daily)
+  trackExpectedMoveAccuracy();
+
+  // Track realized volatility
+  trackRealizedVolatility();
+
+  // Detect regime transitions
+  detectRegimeTransition();
+
   MARKET.lastUpdate = new Date();
+}
+
+// ===== EXPECTED MOVE ACCURACY TRACKER =====
+function trackExpectedMoveAccuracy() {
+  if (MARKET.spx <= 0 || MARKET.vix <= 0 || MARKET.spxPrevClose <= 0) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const hist = MARKET.expectedMoveHistory;
+
+  // Only record once per day
+  if (hist.length > 0 && hist[hist.length - 1].date === today) return;
+
+  const expectedMove1d = MARKET.expectedMove1d();
+  const actualMove = Math.abs(MARKET.spx - MARKET.spxPrevClose);
+  const withinExpected = actualMove <= expectedMove1d;
+  const overestimate = expectedMove1d > 0 ? ((expectedMove1d - actualMove) / expectedMove1d * 100) : 0;
+
+  hist.push({
+    date: today,
+    expected: +expectedMove1d.toFixed(2),
+    actual: +actualMove.toFixed(2),
+    vix: +MARKET.vix.toFixed(2),
+    within: withinExpected,
+    overestimate: +overestimate.toFixed(1)
+  });
+
+  // Keep rolling 90-day window
+  if (hist.length > 90) MARKET.expectedMoveHistory = hist.slice(-90);
+
+  // Calculate accuracy stats
+  if (hist.length >= 3) {
+    const withinCount = hist.filter(h => h.within).length;
+    MARKET.expectedMoveAccuracy = Math.round(withinCount / hist.length * 100);
+    const avgOverestimate = hist.reduce((s, h) => s + h.overestimate, 0) / hist.length;
+    MARKET.varianceRiskPremium = +avgOverestimate.toFixed(1);
+  }
+
+  // Persist to localStorage
+  try { localStorage.setItem('expectedMoveHistory', JSON.stringify(MARKET.expectedMoveHistory)); } catch(e) {}
+}
+
+// ===== REALIZED VOLATILITY TRACKER =====
+function trackRealizedVolatility() {
+  if (MARKET.spx <= 0) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const hist = MARKET.spxCloseHistory;
+
+  // Only record once per day
+  if (hist.length > 0 && hist[hist.length - 1].date === today) {
+    hist[hist.length - 1].close = MARKET.spx; // update today's close
+  } else {
+    hist.push({ date: today, close: MARKET.spx });
+  }
+
+  // Keep 60-day window
+  if (hist.length > 60) MARKET.spxCloseHistory = hist.slice(-60);
+
+  // Calculate 20-day realized vol (annualized)
+  if (hist.length >= 5) {
+    const closes = hist.slice(-21).map(h => h.close);
+    const logReturns = [];
+    for (let i = 1; i < closes.length; i++) {
+      if (closes[i-1] > 0) logReturns.push(Math.log(closes[i] / closes[i-1]));
+    }
+    if (logReturns.length >= 4) {
+      const mean = logReturns.reduce((s, r) => s + r, 0) / logReturns.length;
+      const variance = logReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (logReturns.length - 1);
+      MARKET.realizedVol20d = +(Math.sqrt(variance * 252) * 100).toFixed(1); // annualized %
+      MARKET.vrp = +(MARKET.vix - MARKET.realizedVol20d).toFixed(1); // VIX - RV = edge for sellers
+    }
+  }
+
+  try { localStorage.setItem('spxCloseHistory', JSON.stringify(MARKET.spxCloseHistory)); } catch(e) {}
+}
+
+// ===== REGIME TRANSITION DETECTION =====
+function detectRegimeTransition() {
+  if (MARKET.regime === 'unknown') return;
+
+  if (MARKET.previousRegime !== 'unknown' && MARKET.previousRegime !== MARKET.regime) {
+    const direction = getRegimeSeverity(MARKET.regime) > getRegimeSeverity(MARKET.previousRegime) ? 'WORSENED' : 'IMPROVED';
+    MARKET.regimeTransitionAlert = {
+      from: MARKET.previousRegime.toUpperCase(),
+      to: MARKET.regime.toUpperCase(),
+      direction,
+      time: new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'}),
+      advice: direction === 'WORSENED'
+        ? 'Reduce position sizes. Review open short-vol positions. Consider hedging.'
+        : 'Conditions improving. Standard position sizes OK. Look for premium selling setups.'
+    };
+  }
+  MARKET.previousRegime = MARKET.regime;
+}
+
+function getRegimeSeverity(regime) {
+  return { low: 0, normal: 1, elevated: 2, crisis: 3 }[regime] || 0;
+}
+
+// ===== PER-TICKER IV RANK =====
+function getTickerIVRank(symbol, currentIV) {
+  if (!currentIV || currentIV <= 0) return { rank: 50, percentile: 50, dataPoints: 0 };
+
+  const hist = MARKET.tickerIVHistory[symbol] || [];
+  const today = new Date().toISOString().split('T')[0];
+
+  // Add today's IV
+  if (hist.length === 0 || hist[hist.length - 1].date !== today) {
+    hist.push({ date: today, iv: currentIV });
+  } else {
+    hist[hist.length - 1].iv = currentIV;
+  }
+
+  // Keep 252 trading days (1 year)
+  if (hist.length > 252) MARKET.tickerIVHistory[symbol] = hist.slice(-252);
+  else MARKET.tickerIVHistory[symbol] = hist;
+
+  // Save periodically (every 10th update)
+  if (Math.random() < 0.1) {
+    try { localStorage.setItem('tickerIVHistory', JSON.stringify(MARKET.tickerIVHistory)); } catch(e) {}
+  }
+
+  if (hist.length < 5) return { rank: 50, percentile: 50, dataPoints: hist.length };
+
+  const ivs = hist.map(h => h.iv);
+  const high = Math.max(...ivs);
+  const low = Math.min(...ivs);
+  const rank = high > low ? Math.min(100, Math.max(0, Math.round((currentIV - low) / (high - low) * 100))) : 50;
+  const below = ivs.filter(v => v < currentIV).length;
+  const percentile = Math.round(below / ivs.length * 100);
+
+  return { rank, percentile, dataPoints: hist.length, high: +high.toFixed(1), low: +low.toFixed(1) };
+}
+
+// ===== PORTFOLIO GREEKS AGGREGATION =====
+function getPortfolioGreeks() {
+  const positions = JSON.parse(localStorage.getItem('optionsPositions') || '[]');
+  const agg = { delta: 0, gamma: 0, theta: 0, vega: 0, count: 0, totalRisk: 0 };
+
+  positions.forEach(pos => {
+    const mult = (pos.contracts || 1) * 100;
+    const sign = pos.type && pos.type.startsWith('long') ? 1 : -1;
+
+    if (pos.delta !== undefined) agg.delta += pos.delta * mult * sign;
+    if (pos.gamma !== undefined) agg.gamma += pos.gamma * mult;
+    if (pos.theta !== undefined) agg.theta += Math.abs(pos.theta) * mult * sign;
+    if (pos.vega !== undefined) agg.vega += pos.vega * mult * sign;
+
+    // Iron condors and spreads
+    if (pos.type === 'iron-condor' || pos.type === 'call-spread' || pos.type === 'put-spread') {
+      if (pos.maxRisk) agg.totalRisk += parseFloat(pos.maxRisk) * (pos.contracts || 1);
+      // Credit positions are short premium (negative theta = income)
+      agg.theta += Math.abs(pos.theta || 0.05) * mult; // estimate if missing
+    }
+
+    agg.count++;
+  });
+
+  return agg;
+}
+
+// ===== GEX CALCULATOR =====
+function calculateGEX(contracts, spotPrice) {
+  if (!contracts || contracts.length === 0 || !spotPrice) return null;
+
+  const gexByStrike = {};
+  let totalCallGEX = 0, totalPutGEX = 0;
+  let callWallStrike = 0, callWallGEX = 0;
+  let putWallStrike = 0, putWallGEX = 0;
+
+  contracts.forEach(c => {
+    if (!c.gamma || !c.openInterest) return;
+    const oi = c.openInterest || c.oi || 0;
+    if (oi <= 0) return;
+
+    // GEX = Gamma * OI * 100 * Spot^2 * 0.01
+    const gex = c.gamma * oi * 100 * spotPrice * spotPrice * 0.01;
+    const strike = c.strike;
+
+    if (!gexByStrike[strike]) gexByStrike[strike] = { call: 0, put: 0, net: 0 };
+
+    if (c.type === 'call') {
+      gexByStrike[strike].call += gex;
+      totalCallGEX += gex;
+      // Track Call Wall (highest call gamma * OI)
+      if (gex > callWallGEX) { callWallGEX = gex; callWallStrike = strike; }
+    } else {
+      gexByStrike[strike].put -= gex; // puts contribute negative gamma
+      totalPutGEX += gex;
+      // Track Put Wall (highest put gamma * OI)
+      if (gex > putWallGEX) { putWallGEX = gex; putWallStrike = strike; }
+    }
+    gexByStrike[strike].net = gexByStrike[strike].call + gexByStrike[strike].put;
+  });
+
+  const netGEX = totalCallGEX - totalPutGEX;
+  const isPositive = netGEX > 0;
+
+  // Find Volatility Trigger (where cumulative GEX flips from positive to negative)
+  const strikes = Object.keys(gexByStrike).map(Number).sort((a, b) => a - b);
+  let volTrigger = spotPrice;
+  let cumGEX = 0;
+  for (const s of strikes) {
+    cumGEX += gexByStrike[s].net;
+    if (s >= spotPrice && cumGEX < 0) { volTrigger = s; break; }
+  }
+
+  // Find Zero Gamma level
+  let zeroGamma = spotPrice;
+  let minAbsGEX = Infinity;
+  for (const s of strikes) {
+    if (Math.abs(gexByStrike[s].net) < minAbsGEX && Math.abs(s - spotPrice) < spotPrice * 0.05) {
+      minAbsGEX = Math.abs(gexByStrike[s].net);
+      zeroGamma = s;
+    }
+  }
+
+  return {
+    netGEX: +netGEX.toFixed(0),
+    isPositive,
+    regime: isPositive ? 'POSITIVE (Mean-Reverting)' : 'NEGATIVE (Trending)',
+    regimeColor: isPositive ? 'var(--green)' : 'var(--red)',
+    regimeAdvice: isPositive
+      ? 'Dealers buy dips, sell rips. Fade moves. Sell premium. Range-bound expected.'
+      : 'Dealers amplify moves. Trade momentum. Buy premium. Breakouts expected.',
+    callWall: callWallStrike,
+    putWall: putWallStrike,
+    volTrigger,
+    zeroGamma,
+    gexByStrike,
+    totalCallGEX: +totalCallGEX.toFixed(0),
+    totalPutGEX: +totalPutGEX.toFixed(0)
+  };
+}
+
+// ===== UNUSUAL OPTIONS FLOW SCANNER =====
+function scanUnusualFlow(contracts, symbol) {
+  if (!contracts || contracts.length === 0) return [];
+
+  const unusual = [];
+
+  contracts.forEach(c => {
+    const vol = c.volume || c.day_volume || 0;
+    const oi = c.openInterest || c.oi || 0;
+    if (vol < 500 || oi < 100) return; // minimum thresholds
+
+    const volOI = oi > 0 ? vol / oi : 0;
+    const premium = (c.price || c.mid || 0) * vol * 100;
+
+    // Unusual: Vol/OI > 2.0
+    if (volOI < 2.0) return;
+
+    let signal = 'UNUSUAL';
+    let signalColor = 'var(--yellow)';
+
+    if (premium > 1000000 && volOI > 3.0) {
+      signal = 'GOLDEN SWEEP';
+      signalColor = 'var(--orange)';
+    } else if (premium > 100000 && volOI > 3.0) {
+      signal = 'SMART MONEY';
+      signalColor = 'var(--cyan)';
+    } else if (volOI > 5.0) {
+      signal = 'HIGHLY UNUSUAL';
+      signalColor = 'var(--purple)';
+    }
+
+    unusual.push({
+      symbol,
+      type: c.type,
+      strike: c.strike,
+      expiry: c.expiry || c.expiration_date || '--',
+      dte: c.dte || 0,
+      volume: vol,
+      oi: oi,
+      volOI: +volOI.toFixed(1),
+      premium: +premium.toFixed(0),
+      signal,
+      signalColor,
+      iv: c.iv || 0,
+      delta: c.delta || 0
+    });
+  });
+
+  // Sort by premium descending
+  unusual.sort((a, b) => b.premium - a.premium);
+  return unusual.slice(0, 20); // top 20
 }
 
 // ===== SECTOR ETF FETCHING =====
@@ -3691,17 +4030,37 @@ function updateRegimeIndicators() {
     '<span style="color:var(--text-muted)">' + label + ':</span>' +
     '<span style="color:' + color + ';font-weight:600;">' + value + '</span></div>';
 
+  // VVIX interpretation
+  let vvixLabel = '---', vvixColor = 'var(--text-muted)';
+  if (MARKET.vvix > 0) {
+    if (MARKET.vvix > 125) { vvixLabel = fmt(MARKET.vvix) + ' EXTREME (sell vol)'; vvixColor = 'var(--red)'; }
+    else if (MARKET.vvix > 100) { vvixLabel = fmt(MARKET.vvix) + ' Elevated'; vvixColor = 'var(--orange)'; }
+    else if (MARKET.vvix > 85) { vvixLabel = fmt(MARKET.vvix) + ' Normal'; vvixColor = 'var(--text-primary)'; }
+    else { vvixLabel = fmt(MARKET.vvix) + ' Low (buy protection)'; vvixColor = 'var(--cyan)'; }
+  }
+
+  // VRP label
+  let vrpLabel = '---', vrpColor = 'var(--text-muted)';
+  if (MARKET.vrp !== 0) {
+    vrpLabel = (MARKET.vrp > 0 ? '+' : '') + MARKET.vrp + '% (seller edge)';
+    vrpColor = MARKET.vrp > 5 ? 'var(--green)' : MARKET.vrp > 0 ? 'var(--cyan)' : 'var(--red)';
+  }
+
   el.innerHTML =
     row('VIX Level', fmt(vix) + ' (' + vixLabel + ')', vixColor) +
     row('VIX Change', (MARKET.vixChange >= 0 ? '+' : '') + fmt(MARKET.vixChange) + '% today', MARKET.vixChange > 5 ? 'var(--red)' : MARKET.vixChange < -5 ? 'var(--green)' : 'var(--text-primary)') +
+    (MARKET.vvix > 0 ? row('VVIX', vvixLabel, vvixColor) : '') +
+    (MARKET.vvixVixRatio > 0 ? row('VVIX/VIX Ratio', MARKET.vvixVixRatio.toFixed(1) + (MARKET.vvixVixRatio > 7 ? ' DANGER' : MARKET.vvixVixRatio > 6 ? ' Elevated' : ' Normal'), MARKET.vvixVixRatio > 7 ? 'var(--red)' : MARKET.vvixVixRatio > 6 ? 'var(--orange)' : 'var(--text-primary)') : '') +
     row('SPX Change', (spxChg >= 0 ? '+' : '') + fmt(spxChg) + '% today', spxChg >= 0 ? 'var(--green)' : 'var(--red)') +
-    row('Oil Impact', oilLabel, oilColor) +
-    row('10Y Yield', tsyLabel, tsyColor) +
     row('IV Rank', MARKET.ivRank + '/100', MARKET.ivRank > 60 ? 'var(--orange)' : 'var(--green)') +
     row('IV Percentile', MARKET.ivPercentile + '%', MARKET.ivPercentile > 70 ? 'var(--orange)' : MARKET.ivPercentile < 30 ? 'var(--cyan)' : 'var(--text-primary)') +
+    (MARKET.vrp !== 0 ? row('Variance Risk Premium', vrpLabel, vrpColor) : '') +
+    (MARKET.realizedVol20d > 0 ? row('Realized Vol (20d)', MARKET.realizedVol20d + '%', MARKET.realizedVol20d > MARKET.vix ? 'var(--red)' : 'var(--green)') : '') +
+    (MARKET.expectedMoveAccuracy > 0 ? row('Exp Move Accuracy', MARKET.expectedMoveAccuracy + '% within (' + MARKET.expectedMoveHistory.length + 'd)', MARKET.expectedMoveAccuracy > 70 ? 'var(--green)' : 'var(--yellow)') : '') +
     row('Trend Strength', (MARKET.trendStrength >= 0 ? '+' : '') + MARKET.trendStrength, MARKET.trendStrength > 20 ? 'var(--green)' : MARKET.trendStrength < -20 ? 'var(--red)' : 'var(--yellow)') +
     row('Regime Score', MARKET.regimeScore + '/100', MARKET.regimeScore >= 55 ? 'var(--green)' : MARKET.regimeScore >= 35 ? 'var(--yellow)' : 'var(--red)') +
-    row('Regime', regime, regimeColor);
+    row('Regime', regime, regimeColor) +
+    (MARKET.vvixSignal ? '<div style="margin-top:6px;padding:6px 8px;background:var(--bg-card-alt);border-radius:4px;font-size:0.78rem;color:var(--text-secondary);border-left:3px solid var(--purple);">' + MARKET.vvixSignal + '</div>' : '');
 }
 
 // ===== REGIME CLASSIFIER TAB (live) =====
@@ -3745,11 +4104,37 @@ function updateRegimeClassifier() {
   else if (MARKET.regimeScore >= 15) { scoreLabel = 'DEFENSIVE'; scoreColor = 'var(--orange)'; }
   else { scoreLabel = 'CRISIS'; scoreColor = 'var(--red)'; }
 
+  // VRP card
+  let vrpValue = '---', vrpCardColor = 'var(--text-muted)', vrpDesc = 'Building history...';
+  if (MARKET.vrp !== 0) {
+    vrpValue = (MARKET.vrp > 0 ? '+' : '') + MARKET.vrp + '%';
+    vrpCardColor = MARKET.vrp > 5 ? 'var(--green)' : MARKET.vrp > 0 ? 'var(--cyan)' : 'var(--red)';
+    vrpDesc = MARKET.vrp > 5 ? 'Strong seller edge' : MARKET.vrp > 0 ? 'Mild seller edge' : 'Buyer advantage';
+  }
+
+  // VVIX card
+  let vvixCardVal = '---', vvixCardColor = 'var(--text-muted)', vvixCardDesc = 'Loading...';
+  if (MARKET.vvix > 0) {
+    vvixCardVal = fmt(MARKET.vvix);
+    vvixCardColor = MARKET.vvix > 125 ? 'var(--red)' : MARKET.vvix > 100 ? 'var(--orange)' : MARKET.vvix < 85 ? 'var(--cyan)' : 'var(--text-primary)';
+    vvixCardDesc = MARKET.vvix > 125 ? 'Sell vol (reversal likely)' : MARKET.vvix > 100 ? 'Hedging demand high' : MARKET.vvix < 85 ? 'Buy protection (cheap)' : 'Normal range';
+  }
+
+  // Expected Move Accuracy card
+  let emAccVal = '---', emAccColor = 'var(--text-muted)', emAccDesc = 'Building history...';
+  if (MARKET.expectedMoveHistory.length >= 3) {
+    emAccVal = MARKET.expectedMoveAccuracy + '%';
+    emAccColor = MARKET.expectedMoveAccuracy > 70 ? 'var(--green)' : 'var(--yellow)';
+    emAccDesc = 'IV overestimates ' + MARKET.varianceRiskPremium + '% avg (' + MARKET.expectedMoveHistory.length + 'd)';
+  }
+
   el.innerHTML =
     card('VIX Regime', vixRegime, vixRegimeColor, fmt(vix) + ' (' + vixRange + ')') +
     card('Regime Score', MARKET.regimeScore + '/100', scoreColor, scoreLabel) +
+    card('VVIX', vvixCardVal, vvixCardColor, vvixCardDesc) +
     card('IV Rank', MARKET.ivRank + '%', MARKET.ivRank > 60 ? 'var(--orange)' : 'var(--green)', MARKET.ivRank > 60 ? 'Options expensive' : 'Options fair/cheap') +
-    card('IV Percentile', MARKET.ivPercentile + '%', MARKET.ivPercentile > 70 ? 'var(--orange)' : 'var(--green)', MARKET.ivPercentile > 70 ? 'VIX above ' + MARKET.ivPercentile + '% of days' : 'VIX below avg') +
+    card('Variance Risk Premium', vrpValue, vrpCardColor, vrpDesc) +
+    card('Exp Move Accuracy', emAccVal, emAccColor, emAccDesc) +
     card('Trend', trend, trendColor, trendDesc + ' (' + (MARKET.trendStrength >= 0 ? '+' : '') + MARKET.trendStrength + ')') +
     card('IV vs RV', ivVsRv.label, ivVsRv.color, ivVsRv.desc) +
     card('Oil', '$' + fmt(MARKET.oil), MARKET.oil > 90 ? 'var(--red)' : 'var(--green)', MARKET.oil > 90 ? 'Inflation pressure' : 'Manageable');
@@ -3791,10 +4176,30 @@ function updateRegimeClassifier() {
     sentSummary = ' Sentiment: ' + MARKET.sentiment.label + ' (' + MARKET.sentiment.score.toFixed(2) + ').';
   }
 
+  // Build VVIX summary
+  let vvixSummary = '';
+  if (MARKET.vvix > 0) {
+    vvixSummary = ' VVIX: ' + fmt(MARKET.vvix) + ' (ratio: ' + MARKET.vvixVixRatio.toFixed(1) + ').';
+    if (MARKET.vvixSignal.includes('DIVERGENCE')) vvixSummary += ' WARNING: ' + MARKET.vvixSignal;
+  }
+
+  // Build VRP summary
+  let vrpSummary = '';
+  if (MARKET.vrp !== 0) {
+    vrpSummary = ' VRP: ' + (MARKET.vrp > 0 ? '+' : '') + MARKET.vrp + '% (' +
+      (MARKET.vrp > 5 ? 'strong seller edge' : MARKET.vrp > 0 ? 'mild seller edge' : 'buyer advantage') + ').';
+  }
+
+  // Build expected move summary
+  let emSummary = '';
+  if (MARKET.expectedMoveHistory.length >= 3) {
+    emSummary = ' Expected Move Accuracy: ' + MARKET.expectedMoveAccuracy + '% (IV overestimates ' + MARKET.varianceRiskPremium + '% avg).';
+  }
+
   verdictText.textContent = 'Regime Score: ' + MARKET.regimeScore + '/100. ' +
     'VIX at ' + fmt(vix) + ' (IV Rank: ' + MARKET.ivRank + ', Percentile: ' + MARKET.ivPercentile + '%). ' +
     'SPX ' + (MARKET.spxChange >= 0 ? 'up' : 'down') + ' ' + Math.abs(MARKET.spxChange).toFixed(2) + '%. ' +
-    'Oil at $' + fmt(MARKET.oil) + '.' + techSummary + sentSummary +
+    'Oil at $' + fmt(MARKET.oil) + '.' + vvixSummary + vrpSummary + emSummary + techSummary + sentSummary +
     ' Strategy: ' + MARKET.regimeAdvice;
 }
 
@@ -3828,10 +4233,188 @@ async function updateAllDisplays() {
   updateRegimeIndicators();
   updateRegimeClassifier();
   updateMiscLiveRefs();
+  updateGEXDashboard();
+  updateUnusualFlow();
+  updatePortfolioGreeks();
+  updateRegimeTransitionAlert();
 
   // Refresh best plays for active tab
   const activeTab = document.querySelector('.tab.active');
   if (activeTab) generateBestPlays(activeTab.dataset.tab);
+
+  // Auto-generate top trades on Market Overview (if chains loaded)
+  if (Object.keys(OPTIONS_CACHE).length > 0) {
+    generateTopTrades();
+  }
+}
+
+// ===== GEX DASHBOARD RENDERER =====
+function updateGEXDashboard() {
+  const el = document.getElementById('gexDashboard');
+  const badge = document.getElementById('gexRegimeBadge');
+  if (!el) return;
+
+  const spy = OPTIONS_CACHE['SPY'];
+  if (!spy || !spy.contracts || spy.contracts.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);padding:12px;text-align:center;">Waiting for options chain data... (scans every 3 min)</div>';
+    return;
+  }
+
+  const spotPrice = MARKET.spx > 0 ? MARKET.spx / 10 : spy.underlying || 550;
+  const gex = calculateGEX(spy.contracts, spotPrice);
+  if (!gex) return;
+
+  if (badge) {
+    badge.className = 'badge ' + (gex.isPositive ? 'badge-green' : 'badge-red');
+    badge.textContent = gex.isPositive ? 'POSITIVE GEX' : 'NEGATIVE GEX';
+  }
+
+  const strikes = Object.keys(gex.gexByStrike).map(Number).sort((a, b) => a - b);
+  const nearStrikes = strikes.filter(s => Math.abs(s - spotPrice) < spotPrice * 0.03).slice(0, 12);
+  let barChart = '<div style="margin-top:8px;">';
+  const maxGEX = Math.max(1, ...nearStrikes.map(s => Math.abs(gex.gexByStrike[s].net)));
+  nearStrikes.forEach(s => {
+    const net = gex.gexByStrike[s].net;
+    const pct = Math.abs(net) / maxGEX * 100;
+    const color = net >= 0 ? 'var(--green)' : 'var(--red)';
+    const isCallWall = s === gex.callWall;
+    const isPutWall = s === gex.putWall;
+    const label = '$' + s + (isCallWall ? ' [CALL WALL]' : '') + (isPutWall ? ' [PUT WALL]' : '');
+    const labelColor = isCallWall ? 'var(--cyan)' : isPutWall ? 'var(--orange)' : 'var(--text-secondary)';
+    barChart += '<div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;margin:1px 0;">' +
+      '<span style="width:130px;text-align:right;color:' + labelColor + ';' + (isCallWall || isPutWall ? 'font-weight:700;' : '') + '">' + label + '</span>' +
+      '<div style="flex:1;height:10px;background:var(--bg-card-alt);border-radius:2px;overflow:hidden;">' +
+      '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:2px;"></div></div>' +
+      '<span style="width:45px;font-size:0.7rem;color:var(--text-muted);">' + (net >= 0 ? '+' : '') + (net / 1e6).toFixed(1) + 'M</span></div>';
+  });
+  barChart += '</div>';
+
+  el.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:8px;">' +
+    '<div style="background:var(--bg-card-alt);border-radius:6px;padding:10px;text-align:center;border:1px solid var(--border);">' +
+      '<div style="color:var(--text-muted);font-size:0.7rem;">GEX REGIME</div>' +
+      '<div style="font-size:1rem;font-weight:700;color:' + gex.regimeColor + ';">' + (gex.isPositive ? 'POSITIVE' : 'NEGATIVE') + '</div>' +
+      '<div style="font-size:0.72rem;color:var(--text-secondary);">' + (gex.isPositive ? 'Mean-reverting' : 'Trend-following') + '</div></div>' +
+    '<div style="background:var(--bg-card-alt);border-radius:6px;padding:10px;text-align:center;border:1px solid var(--border);">' +
+      '<div style="color:var(--text-muted);font-size:0.7rem;">CALL WALL (Resistance)</div>' +
+      '<div style="font-size:1rem;font-weight:700;color:var(--cyan);">$' + gex.callWall + '</div>' +
+      '<div style="font-size:0.72rem;color:var(--text-secondary);">Dealers sell here</div></div>' +
+    '<div style="background:var(--bg-card-alt);border-radius:6px;padding:10px;text-align:center;border:1px solid var(--border);">' +
+      '<div style="color:var(--text-muted);font-size:0.7rem;">PUT WALL (Support)</div>' +
+      '<div style="font-size:1rem;font-weight:700;color:var(--orange);">$' + gex.putWall + '</div>' +
+      '<div style="font-size:0.72rem;color:var(--text-secondary);">Dealers buy here</div></div>' +
+    '<div style="background:var(--bg-card-alt);border-radius:6px;padding:10px;text-align:center;border:1px solid var(--border);">' +
+      '<div style="color:var(--text-muted);font-size:0.7rem;">VOL TRIGGER</div>' +
+      '<div style="font-size:1rem;font-weight:700;color:var(--purple);">$' + gex.volTrigger + '</div>' +
+      '<div style="font-size:0.72rem;color:var(--text-secondary);">' + (spotPrice > gex.volTrigger ? 'Above (low vol)' : 'Below (high vol)') + '</div></div>' +
+    '</div>' +
+    '<div style="padding:6px 8px;background:var(--bg-card-alt);border-radius:4px;font-size:0.78rem;color:var(--text-secondary);border-left:3px solid ' + gex.regimeColor + ';margin-bottom:8px;">' +
+    gex.regimeAdvice + '</div>' +
+    barChart;
+}
+
+// ===== UNUSUAL FLOW RENDERER =====
+function updateUnusualFlow() {
+  const el = document.getElementById('unusualFlowTable');
+  if (!el) return;
+
+  const allUnusual = [];
+  Object.entries(OPTIONS_CACHE).forEach(([sym, data]) => {
+    if (data && data.contracts) {
+      const flows = scanUnusualFlow(data.contracts, sym);
+      allUnusual.push(...flows);
+    }
+  });
+
+  if (allUnusual.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);padding:12px;text-align:center;">No unusual activity yet. Chain scanner runs every 3 min.</div>';
+    return;
+  }
+
+  allUnusual.sort((a, b) => b.premium - a.premium);
+  const top = allUnusual.slice(0, 10);
+
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:0.78rem;">' +
+    '<tr style="color:var(--text-muted);border-bottom:1px solid var(--border);">' +
+    '<th style="padding:4px;text-align:left;">Sym</th><th>Type</th><th>Strike</th>' +
+    '<th>Vol/OI</th><th>Premium</th><th>Signal</th></tr>';
+
+  top.forEach(f => {
+    const typeBadge = f.type === 'call'
+      ? '<span style="color:var(--green);font-weight:600;">CALL</span>'
+      : '<span style="color:var(--red);font-weight:600;">PUT</span>';
+    const premStr = f.premium >= 1000000 ? '$' + (f.premium / 1e6).toFixed(1) + 'M'
+      : f.premium >= 1000 ? '$' + (f.premium / 1e3).toFixed(0) + 'K'
+      : '$' + f.premium;
+
+    html += '<tr style="border-bottom:1px solid var(--border);">' +
+      '<td style="padding:4px;font-weight:600;">' + f.symbol + '</td>' +
+      '<td style="padding:4px;">' + typeBadge + '</td>' +
+      '<td style="padding:4px;">$' + f.strike + '</td>' +
+      '<td style="padding:4px;font-weight:600;">' + f.volOI + 'x</td>' +
+      '<td style="padding:4px;">' + premStr + '</td>' +
+      '<td style="padding:4px;color:' + f.signalColor + ';font-weight:600;">' + f.signal + '</td></tr>';
+  });
+  html += '</table>';
+  el.innerHTML = html;
+
+  const badge = document.getElementById('flowBadge');
+  if (badge) {
+    badge.textContent = allUnusual.length + ' SIGNALS';
+    badge.className = 'badge ' + (allUnusual.some(u => u.signal === 'GOLDEN SWEEP') ? 'badge-yellow' : 'badge-purple');
+  }
+}
+
+// ===== PORTFOLIO GREEKS RENDERER =====
+function updatePortfolioGreeks() {
+  const el = document.getElementById('portfolioGreeksSummary');
+  if (!el) return;
+
+  const greeks = getPortfolioGreeks();
+  if (greeks.count === 0) {
+    el.innerHTML = '<div style="color:var(--text-muted);padding:12px;text-align:center;">No positions tracked. Add in Position Tracker.</div>';
+    return;
+  }
+
+  const row = (label, value, color) =>
+    '<div style="display:flex;justify-content:space-between;padding:2px 0;">' +
+    '<span style="color:var(--text-muted)">' + label + ':</span>' +
+    '<span style="color:' + color + ';font-weight:600;">' + value + '</span></div>';
+
+  const deltaOK = Math.abs(greeks.delta) <= 30;
+
+  el.innerHTML =
+    '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">' + greeks.count + ' positions</div>' +
+    row('Net Delta', (greeks.delta >= 0 ? '+' : '') + greeks.delta.toFixed(1), deltaOK ? 'var(--green)' : 'var(--orange)') +
+    row('Net Gamma', greeks.gamma.toFixed(2), 'var(--text-primary)') +
+    row('Net Theta', (greeks.theta >= 0 ? '+' : '') + '$' + greeks.theta.toFixed(0) + '/day', greeks.theta > 0 ? 'var(--green)' : 'var(--red)') +
+    row('Net Vega', (greeks.vega >= 0 ? '+' : '') + greeks.vega.toFixed(1), 'var(--text-primary)') +
+    row('Total Risk', '$' + greeks.totalRisk.toFixed(0), 'var(--yellow)') +
+    '<div style="margin-top:4px;font-size:0.72rem;padding:4px 6px;background:var(--bg-card-alt);border-radius:3px;color:var(--text-secondary);">' +
+    'Targets: Delta -30 to +30 | Theta +$100-300/day per $100K</div>';
+}
+
+// ===== REGIME TRANSITION ALERT RENDERER =====
+function updateRegimeTransitionAlert() {
+  const alertEl = document.getElementById('regimeTransitionAlert');
+  const contentEl = document.getElementById('regimeTransitionContent');
+  if (!alertEl || !contentEl) return;
+
+  if (!MARKET.regimeTransitionAlert) {
+    alertEl.style.display = 'none';
+    return;
+  }
+
+  alertEl.style.display = 'block';
+  const a = MARKET.regimeTransitionAlert;
+  const dirColor = a.direction === 'WORSENED' ? 'var(--red)' : 'var(--green)';
+
+  contentEl.innerHTML =
+    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
+    '<span style="font-size:1.1rem;font-weight:700;color:' + dirColor + ';">' + a.direction + '</span>' +
+    '<span style="color:var(--text-secondary);">' + a.from + ' &rarr; ' + a.to + '</span>' +
+    '<span style="color:var(--text-muted);font-size:0.75rem;">at ' + a.time + '</span></div>' +
+    '<div style="padding:8px;background:var(--bg-card-alt);border-radius:4px;border-left:3px solid ' + dirColor + ';">' + a.advice + '</div>';
 }
 
 // ===== SECONDARY DATA FETCH (sectors, news — less frequent) =====
@@ -3873,6 +4456,32 @@ async function fetchSecondaryData() {
       console.log('Sentiment loaded:', label, avgScore.toFixed(3));
     }
   } catch (e) { console.warn('Sentiment fetch error:', e); }
+
+  // Finnhub Social Sentiment (Reddit/Twitter)
+  try {
+    const keys = getApiKeys();
+    if (keys.finnhub) {
+      if (!MARKET.socialSentiment) MARKET.socialSentiment = {};
+      const socialTickers = ['SPY', 'AAPL', 'NVDA', 'TSLA', 'QQQ'];
+      for (const sym of socialTickers) {
+        try {
+          const resp = await fetch('https://finnhub.io/api/v1/stock/social-sentiment?symbol=' + sym + '&token=' + keys.finnhub);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.reddit && data.reddit.length > 0) {
+              const lr = data.reddit[data.reddit.length - 1];
+              MARKET.socialSentiment[sym] = {
+                redditMentions: lr.mention || 0,
+                redditScore: (lr.positiveScore || 0) - (lr.negativeScore || 0),
+                twitterMentions: data.twitter && data.twitter.length > 0 ? data.twitter[data.twitter.length - 1].mention : 0
+              };
+            }
+          }
+        } catch(e) { /* skip */ }
+      }
+      console.log('Social sentiment loaded:', Object.keys(MARKET.socialSentiment).length, 'tickers');
+    }
+  } catch (e) { console.warn('Social sentiment error:', e); }
 
   // Update displays with new data
   updateAllDisplays();
@@ -4662,9 +5271,226 @@ function signalScoreBadge(score) {
     'Score: ' + score.composite + ' (' + score.grade + ')</span>';
 }
 
+// Full-context trade reasoning (the "because" chain)
+function tradeReasoning(score, opts) {
+  const reasons = [];
+
+  // IV environment
+  if (score.scores.iv >= 70) reasons.push('IV Rank ' + MARKET.ivRank + ' (rich, sell premium)');
+  else if (score.scores.iv >= 50) reasons.push('IV Rank ' + MARKET.ivRank + ' (moderate)');
+  else reasons.push('IV Rank ' + MARKET.ivRank + ' (cheap)');
+
+  // Regime
+  const regimeNames = { low: 'Low Vol', normal: 'Normal', elevated: 'Elevated', crisis: 'Crisis' };
+  reasons.push('Regime: ' + (regimeNames[MARKET.regime] || MARKET.regime) + ' (' + MARKET.regimeScore + '/100)');
+
+  // VVIX
+  if (MARKET.vvix > 0) {
+    if (MARKET.vvix > 125) reasons.push('VVIX ' + fmt(MARKET.vvix) + ' (extreme, vol likely to fall)');
+    else if (MARKET.vvix < 85) reasons.push('VVIX ' + fmt(MARKET.vvix) + ' (low, protection cheap)');
+  }
+
+  // VRP
+  if (MARKET.vrp > 3) reasons.push('VRP +' + MARKET.vrp + '% (seller edge)');
+  else if (MARKET.vrp < -2) reasons.push('VRP ' + MARKET.vrp + '% (buyer edge)');
+
+  // Technicals
+  if (MARKET.technicals.rsi) {
+    const rsi = MARKET.technicals.rsi;
+    if (rsi > 70) reasons.push('RSI ' + rsi.toFixed(0) + ' (overbought)');
+    else if (rsi < 30) reasons.push('RSI ' + rsi.toFixed(0) + ' (oversold)');
+  }
+
+  // Sentiment
+  if (MARKET.sentiment.label !== 'NEUTRAL') {
+    reasons.push('Sentiment: ' + MARKET.sentiment.label);
+  }
+
+  // Expected move accuracy
+  if (MARKET.varianceRiskPremium > 10) {
+    reasons.push('IV overestimates ' + MARKET.varianceRiskPremium + '% avg');
+  }
+
+  if (reasons.length === 0) return '';
+  return '<div style="font-size:0.7rem;color:var(--text-muted);margin-top:3px;padding:3px 6px;background:var(--bg-card-alt);border-radius:3px;border-left:2px solid ' + score.color + ';">WHY: ' + reasons.join(' | ') + '</div>';
+}
+
 // Filter plays by minimum score threshold
 function filterByScore(plays, minScore) {
   return plays.filter(p => !p.score || p.score.composite >= minScore);
+}
+
+// ===== TOP TRADES: Unified cross-strategy ranked recommendations =====
+function generateTopTrades() {
+  const container = document.getElementById('topTradesContainer');
+  const regimeBadge = document.getElementById('topTradesRegime');
+  if (!container) return;
+
+  // Update regime badge
+  const rs = MARKET.regimeScore;
+  if (regimeBadge) {
+    const regimeLabel = rs >= 55 ? 'SELL AGGRESSIVE' : rs >= 35 ? 'SELL CAUTIOUS' : 'DEFENSIVE';
+    const regimeColor = rs >= 55 ? 'var(--green)' : rs >= 35 ? 'var(--yellow)' : 'var(--red)';
+    regimeBadge.textContent = 'Regime: ' + rs + '/100 | ' + regimeLabel;
+    regimeBadge.style.background = regimeColor + '22';
+    regimeBadge.style.color = regimeColor;
+  }
+
+  const allPlays = [];
+  const cachedCount = Object.keys(OPTIONS_CACHE).length;
+
+  if (cachedCount === 0 && MARKET.spx === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">Waiting for market data and options chains to load...</div>';
+    return;
+  }
+
+  // Scan all cached tickers across all strategy types
+  Object.entries(OPTIONS_CACHE).forEach(([sym, data]) => {
+    if (!data.contracts.length) return;
+    const price = data.underlyingPrice || 0;
+
+    // 1. Day trade credit spreads (0-2 DTE)
+    const dayPut = findCreditSpread(data.contracts, 'put', 0, 2, 0.15, sym === 'SPY' ? 5 : 3);
+    if (dayPut && dayPut.credit > 0.20) {
+      const sig = scoreSignal({ type: 'credit', delta: dayPut.short.delta, iv: dayPut.short.iv, dte: dayPut.dte, credit: dayPut.credit, maxRisk: dayPut.maxRisk || 5, sym });
+      allPlays.push({ sym, strategy: 'Theta Day Trade', horizon: 'DAY', type: 'Put Credit Spread',
+        detail: 'Sell ' + dayPut.short.strike + ' P / Buy ' + dayPut.long.strike + ' P',
+        credit: dayPut.credit, maxRisk: dayPut.maxRisk, dte: dayPut.dte,
+        delta: dayPut.short.delta, iv: dayPut.short.iv, score: sig, price });
+    }
+
+    // 2. Iron condors (7-21 DTE swing)
+    const swIC = findIronCondor(data.contracts, 7, 21, 0.15, 0.15, sym === 'SPY' ? 5 : 3);
+    if (swIC) {
+      const sig = scoreSignal({ type: 'credit', delta: swIC.putSpread.short.delta, iv: swIC.putSpread.short.iv, dte: swIC.dte, credit: parseFloat(swIC.totalCredit), maxRisk: parseFloat(swIC.maxRisk), sym });
+      allPlays.push({ sym, strategy: 'Iron Condor', horizon: 'SWING', type: 'Iron Condor',
+        detail: 'P: ' + swIC.putSpread.short.strike + '/' + swIC.putSpread.long.strike + ' | C: ' + swIC.callSpread.short.strike + '/' + swIC.callSpread.long.strike,
+        credit: parseFloat(swIC.totalCredit), maxRisk: parseFloat(swIC.maxRisk), dte: swIC.dte,
+        delta: swIC.putSpread.short.delta, iv: swIC.putSpread.short.iv, score: sig, price });
+    }
+
+    // 3. Monthly iron condors (30-60 DTE)
+    const moIC = findIronCondor(data.contracts, 30, 60, 0.12, 0.12, sym === 'SPY' ? 10 : 5);
+    if (moIC) {
+      const sig = scoreSignal({ type: 'credit', delta: moIC.putSpread.short.delta, iv: moIC.putSpread.short.iv, dte: moIC.dte, credit: parseFloat(moIC.totalCredit), maxRisk: parseFloat(moIC.maxRisk), sym });
+      allPlays.push({ sym, strategy: 'Monthly Theta', horizon: 'MONTHLY', type: 'Iron Condor',
+        detail: 'P: ' + moIC.putSpread.short.strike + '/' + moIC.putSpread.long.strike + ' | C: ' + moIC.callSpread.short.strike + '/' + moIC.callSpread.long.strike,
+        credit: parseFloat(moIC.totalCredit), maxRisk: parseFloat(moIC.maxRisk), dte: moIC.dte,
+        delta: moIC.putSpread.short.delta, iv: moIC.putSpread.short.iv, score: sig, price });
+    }
+
+    // 4. High-prob OTM puts (naked or spread)
+    const probPuts = findBestPuts(data.contracts, 7, 45, 0.08);
+    if (probPuts.length > 0) {
+      const p = probPuts[0];
+      const prob = Math.round((1 - Math.abs(p.delta)) * 100);
+      if (prob >= 85) {
+        const sig = scoreSignal({ type: 'credit', delta: p.delta, iv: p.iv, dte: p.dte, credit: p.bid, sym });
+        allPlays.push({ sym, strategy: 'High Prob Put', horizon: p.dte <= 7 ? 'DAY' : p.dte <= 21 ? 'SWING' : 'MONTHLY', type: prob + '% Prob OTM Put',
+          detail: 'Sell ' + p.strike + ' Put @ $' + p.bid.toFixed(2) + ' | DTE: ' + p.dte,
+          credit: p.bid, dte: p.dte, delta: p.delta, iv: p.iv, score: sig, price });
+      }
+    }
+
+    // 5. Skew plays (sell rich puts)
+    const puts30 = data.contracts.filter(c => c.type === 'put' && c.dte >= 25 && c.dte <= 45 && Math.abs(c.delta) > 0.15 && Math.abs(c.delta) < 0.30 && c.iv > 0);
+    const calls30 = data.contracts.filter(c => c.type === 'call' && c.dte >= 25 && c.dte <= 45 && Math.abs(c.delta) > 0.15 && Math.abs(c.delta) < 0.30 && c.iv > 0);
+    if (puts30.length && calls30.length) {
+      const avgPutIV = puts30.reduce((s,c) => s + c.iv, 0) / puts30.length;
+      const avgCallIV = calls30.reduce((s,c) => s + c.iv, 0) / calls30.length;
+      const skewRatio = avgPutIV / avgCallIV;
+      if (skewRatio > 1.10) {
+        const bestPut = findCreditSpread(data.contracts, 'put', 25, 45, 0.15, sym === 'SPY' ? 5 : 3);
+        if (bestPut) {
+          const sig = scoreSignal({ type: 'credit', delta: 0.20, iv: avgPutIV, dte: 35, credit: bestPut.credit, maxRisk: bestPut.maxRisk, sym });
+          allPlays.push({ sym, strategy: 'Skew Exploit', horizon: 'SWING', type: 'Put Skew ' + ((skewRatio-1)*100).toFixed(0) + '% rich',
+            detail: 'Sell ' + bestPut.short.strike + ' P / Buy ' + bestPut.long.strike + ' P @ $' + bestPut.credit.toFixed(2),
+            credit: bestPut.credit, maxRisk: bestPut.maxRisk, dte: bestPut.dte, delta: bestPut.short.delta, iv: avgPutIV, score: sig, price });
+        }
+      }
+    }
+  });
+
+  // 6. 0DTE SPY Iron Condor (special case)
+  const spy = OPTIONS_CACHE['SPY'];
+  if (spy && spy.contracts.length > 0) {
+    const ic0 = findIronCondor(spy.contracts, 0, 1, 0.10, 0.10, 5);
+    if (ic0) {
+      const sig = scoreSignal({ type: 'credit', delta: ic0.putSpread.short.delta, iv: ic0.putSpread.short.iv, dte: ic0.dte, credit: parseFloat(ic0.totalCredit), maxRisk: parseFloat(ic0.maxRisk), sym: 'SPY' });
+      allPlays.push({ sym: 'SPY', strategy: '0DTE IC', horizon: 'DAY', type: '0DTE Iron Condor',
+        detail: 'P: ' + ic0.putSpread.short.strike + '/' + ic0.putSpread.long.strike + ' | C: ' + ic0.callSpread.short.strike + '/' + ic0.callSpread.long.strike,
+        credit: parseFloat(ic0.totalCredit), maxRisk: parseFloat(ic0.maxRisk), dte: ic0.dte,
+        delta: ic0.putSpread.short.delta, iv: ic0.putSpread.short.iv, score: sig, price: spy.underlyingPrice });
+    }
+  }
+
+  // 7. Gap fade play
+  if (Math.abs(MARKET.overnightGap) > 0.3 && spy) {
+    const gapType = MARKET.overnightGap >= 0 ? 'call' : 'put';
+    const gapSpread = findCreditSpread(spy.contracts, gapType, 0, 2, 0.15, 5);
+    if (gapSpread) {
+      const sig = scoreSignal({ type: 'credit', delta: gapSpread.short.delta, iv: gapSpread.short.iv, dte: gapSpread.dte, credit: gapSpread.credit, maxRisk: gapSpread.maxRisk, sym: 'SPY' });
+      allPlays.push({ sym: 'SPY', strategy: 'Gap Fade', horizon: 'DAY', type: 'Gap ' + (MARKET.overnightGap >= 0 ? 'Up' : 'Down') + ' Fade',
+        detail: (gapType === 'call' ? 'Sell ' + gapSpread.short.strike + ' C' : 'Sell ' + gapSpread.short.strike + ' P') + ' / Buy ' + gapSpread.long.strike + ' @ $' + gapSpread.credit.toFixed(2),
+        credit: gapSpread.credit, maxRisk: gapSpread.maxRisk, dte: gapSpread.dte,
+        delta: gapSpread.short.delta, iv: gapSpread.short.iv, score: sig, price: spy.underlyingPrice });
+    }
+  }
+
+  // Sort by composite score (best first)
+  allPlays.sort((a, b) => b.score.composite - a.score.composite);
+
+  // Deduplicate: keep best play per sym+horizon combo
+  const seen = new Set();
+  const unique = allPlays.filter(p => {
+    const key = p.sym + '|' + p.horizon + '|' + p.strategy;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Filter by minimum score based on regime
+  const minScore = rs >= 55 ? 30 : rs >= 35 ? 40 : 50; // higher bar in bad regimes
+  const filtered = unique.filter(p => p.score.composite >= minScore);
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">' +
+      (unique.length > 0 ? 'No trades meet minimum score threshold (' + minScore + ') in current regime. ' + unique.length + ' plays scanned.' : 'No option chains loaded yet. Waiting for Polygon data...') + '</div>';
+    return;
+  }
+
+  // Render top trades
+  const top = filtered.slice(0, 15);
+  container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-muted); padding:2px 12px; margin-bottom:6px;">' +
+    filtered.length + ' trades ranked from ' + unique.length + ' scanned | Min score: ' + minScore + ' | Regime: ' + MARKET.regimeAdvice.split('.')[0] + '</div>' +
+    '<table style="width:100%; font-size:0.8rem; border-collapse:collapse;">' +
+    '<thead><tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px;">' +
+    '<th style="padding:6px 8px; text-align:left;">#</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Score</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Ticker</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Strategy</th>' +
+    '<th style="padding:6px 8px; text-align:left;">Trade</th>' +
+    '<th style="padding:6px 8px; text-align:right;">Credit</th>' +
+    '<th style="padding:6px 8px; text-align:right;">Risk</th>' +
+    '<th style="padding:6px 8px; text-align:center;">DTE</th>' +
+    '<th style="padding:6px 8px; text-align:center;">Horizon</th>' +
+    '</tr></thead><tbody>' +
+    top.map((p, i) => {
+      const returnPct = p.maxRisk ? ((p.credit / p.maxRisk) * 100).toFixed(0) : '--';
+      const horizonColor = p.horizon === 'DAY' ? 'var(--red)' : p.horizon === 'SWING' ? 'var(--yellow)' : 'var(--green)';
+      return '<tr style="border-top:1px solid var(--border);' + (i === 0 ? 'background:rgba(6,182,212,0.08);' : '') + '">' +
+        '<td style="padding:8px; font-weight:700; color:var(--cyan);">' + (i + 1) + '</td>' +
+        '<td style="padding:8px;">' + signalScoreBadge(p.score) + '</td>' +
+        '<td style="padding:8px; font-weight:700;">' + p.sym + ' <span style="color:var(--text-muted);font-size:0.7rem;">$' + (p.price||0).toFixed(0) + '</span></td>' +
+        '<td style="padding:8px; font-size:0.75rem;">' + p.strategy + '</td>' +
+        '<td style="padding:8px; font-size:0.75rem; color:var(--text-secondary);">' + p.detail + '</td>' +
+        '<td style="padding:8px; text-align:right; color:var(--green); font-weight:600;">$' + (p.credit||0).toFixed(2) + '</td>' +
+        '<td style="padding:8px; text-align:right; color:var(--text-muted);">' + (p.maxRisk ? '$' + parseFloat(p.maxRisk).toFixed(2) : '--') + ' <span style="font-size:0.65rem;">(' + returnPct + '%)</span></td>' +
+        '<td style="padding:8px; text-align:center;">' + (p.dte||'--') + '</td>' +
+        '<td style="padding:8px; text-align:center;"><span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:' + horizonColor + '22; color:' + horizonColor + '; font-weight:600;">' + p.horizon + '</span></td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table>';
 }
 
 function generateBestPlays(tabId) {
@@ -4707,7 +5533,7 @@ function generateZeroDTEPlays() {
          'Credit: $' + ic.totalCredit + ' | Max Risk: $' + ic.maxRisk + ' | DTE: ' + ic.dte,
          'Put Δ: ' + ic.putSpread.short.delta.toFixed(2) + ' | Call Δ: ' + ic.callSpread.short.delta.toFixed(2)],
         'VIX ' + MARKET.vix.toFixed(1) + ' | IV Rank: ' + MARKET.ivRank + ' | Regime: ' + MARKET.regimeScore + '/100 | LIVE'
-      );
+      ) + tradeReasoning(sig);
     } else { renderFallbackZeroDTE(); }
     // Also scan for best 0DTE across other liquid tickers
     const qdteResults = [];
