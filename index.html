@@ -4418,7 +4418,10 @@ function updateCommandCenter() {
       const dte = p.expiry ? Math.ceil((new Date(p.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
       return dte > 0;
     });
-    const totalPnL = openPos.reduce((s, p) => s + ((p.current || 0) - p.entry) * p.contracts * 100, 0);
+    const totalPnL = openPos.reduce((s, p) => {
+      const isCr = p.type && (p.type.includes('SPREAD') || p.type.includes('CONDOR') || p.type.includes('STRANGLE'));
+      return s + (isCr ? (p.entry - (p.current || 0)) : ((p.current || 0) - p.entry)) * p.contracts * 100;
+    }, 0);
     posEl.textContent = openPos.length;
     posEl.style.color = openPos.length > 0 ? 'var(--purple)' : 'var(--text-muted)';
     posDetailEl.textContent = openPos.length > 0 ? 'P&L: ' + (totalPnL >= 0 ? '+' : '') + '$' + totalPnL.toFixed(0) : 'No open positions';
@@ -6904,7 +6907,10 @@ function runPortfolioAdvisor() {
   const counts = { HOLD: 0, CLOSE: 0, ROLL: 0, ADJUST: 0 };
   recommendations.forEach(r => counts[r.action] = (counts[r.action] || 0) + 1);
 
-  const totalPnL = positions.reduce((s, p) => s + ((p.current || 0) - p.entry) * p.contracts * 100, 0);
+  const totalPnL = positions.reduce((s, p) => {
+    const isCr = p.type && (p.type.includes('SPREAD') || p.type.includes('CONDOR') || p.type.includes('STRANGLE'));
+    return s + (isCr ? (p.entry - (p.current || 0)) : ((p.current || 0) - p.entry)) * p.contracts * 100;
+  }, 0);
 
   container.innerHTML =
     '<div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">' +
@@ -6947,10 +6953,16 @@ function runPortfolioAdvisor() {
 }
 
 function analyzePosition(pos) {
-  const pnl = ((pos.current || 0) - pos.entry) * pos.contracts * 100;
-  const pnlPct = pos.entry > 0 ? ((pos.current || 0) / pos.entry - 1) * 100 : 0;
-  const dte = pos.expiry ? Math.ceil((new Date(pos.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
   const isCredit = pos.type.includes('SPREAD') || pos.type.includes('CONDOR') || pos.type.includes('STRANGLE');
+  // Credit positions: sold at entry, buy back at current. P&L = (entry - current) * qty
+  // Debit positions: bought at entry, sell at current. P&L = (current - entry) * qty
+  const pnl = isCredit
+    ? (pos.entry - (pos.current || 0)) * pos.contracts * 100
+    : ((pos.current || 0) - pos.entry) * pos.contracts * 100;
+  const pnlPct = pos.entry > 0
+    ? (isCredit ? (1 - (pos.current || 0) / pos.entry) * 100 : ((pos.current || 0) / pos.entry - 1) * 100)
+    : 0;
+  const dte = pos.expiry ? Math.ceil((new Date(pos.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
   const posDesc = pos.type + ' ' + (pos.shortStrike ? pos.shortStrike + '/' + pos.longStrike : pos.strike) + ' ' + (pos.expiry || '');
 
   let action = 'HOLD';
