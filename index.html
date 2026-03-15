@@ -5093,10 +5093,9 @@ async function generateAISummary() {
     btn.disabled = false;
     btn.style.opacity = '1';
   } catch (e) {
-    content.innerHTML = '<div style="color:var(--red); padding:16px; text-align:center;">' +
-      '<div style="font-weight:600;">Failed to generate AI brief</div>' +
-      '<div style="font-size:0.78rem; margin-top:6px; color:var(--text-muted);">' + e.message + '</div>' +
-      '<div style="font-size:0.72rem; margin-top:8px; color:var(--text-muted);">Ensure ANTHROPIC_API_KEY is set in Railway env vars.</div></div>';
+    // Show subtle inline note, not a big red error card
+    content.innerHTML = '<div style="color:var(--text-muted); padding:8px 12px; font-size:0.75rem; text-align:center;">' +
+      'AI Brief unavailable' + (e.message.includes('not configured') ? ' -- add ANTHROPIC_API_KEY in Railway env vars' : ': ' + e.message) + '</div>';
     content.style.display = 'block';
     loading.style.display = 'none';
     btn.innerHTML = '<span>&#9733;</span> Retry AI Brief';
@@ -5222,8 +5221,31 @@ async function initLiveData() {
     setInterval(runPriorityScan, 180000);
   }, 3000);
 
-  // Auto-generate AI brief after data loads (10s delay for data to populate)
-  setTimeout(() => { generateAISummary(); }, 10000);
+  // Auto-generate AI brief only if ANTHROPIC_API_KEY is configured on server
+  setTimeout(async () => {
+    try {
+      const r = await fetch('/api/ai-brief');
+      if (r.status === 400) {
+        // No API key -- hide the AI Brief button, don't show error
+        const btn = document.getElementById('aiBriefBtn');
+        if (btn) btn.style.display = 'none';
+      } else if (r.ok) {
+        // Key exists and brief generated -- show it
+        const result = await r.json();
+        _lastAISummary = result.summary;
+        const content = document.getElementById('aiBriefContent');
+        const timeEl = document.getElementById('aiBriefTime');
+        const downloadBtn = document.getElementById('aiBriefDownloadBtn');
+        const briefBtn = document.getElementById('aiBriefBtn');
+        content.innerHTML = renderAISummary(result.summary);
+        content.style.display = 'block';
+        const genTime = new Date(result.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        timeEl.textContent = 'Generated ' + genTime;
+        downloadBtn.style.display = 'flex';
+        briefBtn.innerHTML = '<span>&#8635;</span> Refresh Brief';
+      }
+    } catch(e) { /* network error, skip silently */ }
+  }, 10000);
 }
 
 // Save Polygon key if not already stored
