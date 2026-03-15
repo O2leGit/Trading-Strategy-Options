@@ -281,67 +281,94 @@ app.post('/api/ai-summary', async (req, res) => {
 
   const mkt = req.body || {};
 
-  const prompt = `You are the chief market strategist at a top hedge fund writing a daily market intelligence brief. Analyze this real-time data and produce a comprehensive, actionable market report.
+  const systemPrompt = `You are a senior options strategist at a top-tier hedge fund. You write the morning intelligence brief that the portfolio managers read before the open. Your analysis is known for being brutally direct, numerically precise, and immediately actionable. You never hedge or equivocate. You interpret data through the lens of an options trader who sells premium for a living.
 
-CURRENT MARKET DATA:
-- S&P 500: ${mkt.spx || 'N/A'} (${mkt.spxChange > 0 ? '+' : ''}${mkt.spxChangePct || 'N/A'}%)
-- Dow Jones: ${mkt.dow || 'N/A'} (${mkt.dowChangePct > 0 ? '+' : ''}${mkt.dowChangePct || 'N/A'}%)
-- Nasdaq: ${mkt.nasdaq || 'N/A'} (${mkt.nasdaqChangePct > 0 ? '+' : ''}${mkt.nasdaqChangePct || 'N/A'}%)
-- VIX: ${mkt.vix || 'N/A'} (${mkt.vixChange > 0 ? '+' : ''}${mkt.vixChange || 'N/A'})
-- VVIX: ${mkt.vvix || 'N/A'} (VVIX/VIX Ratio: ${mkt.vvixVixRatio || 'N/A'})
-- WTI Crude: $${mkt.oil || 'N/A'}
-- 10Y Treasury: ${mkt.treasury || 'N/A'}%
+RULES:
+- Every claim must reference a specific number from the data provided
+- Name exact strike prices, expiration dates, and spread widths in trade ideas
+- Interpret VIX/VVIX/VRP/GEX together as a cohesive vol regime picture
+- When IV rank is high, lean toward selling premium. When low, lean toward buying
+- GEX positive = mean-reverting, sell wings. GEX negative = trending, buy protection
+- VRP positive = vol is overpriced, sell it. VRP negative = vol is cheap, buy it
+- Use bold (**text**) for key numbers, levels, and trade tickers
+- Each section header must be on its own line starting with ## (e.g., ## MARKET PULSE)
+- Use bullet points (- ) for lists within sections
+- Keep total response between 600-900 words -- dense, not padded`;
 
-VOLATILITY & REGIME:
-- Market Regime: ${mkt.regime || 'N/A'}
-- IV Rank: ${mkt.ivRank || 'N/A'}
-- VVIX Signal: ${mkt.vvixSignal || 'N/A'}
-- 20-Day Realized Volatility: ${mkt.realizedVol || 'N/A'}%
-- Variance Risk Premium (VIX - RV): ${mkt.vrp || 'N/A'} points
-- Expected Move (1D): +/-${mkt.expectedMove1d || 'N/A'} pts
-- Expected Move (1W): +/-${mkt.expectedMove1w || 'N/A'} pts
-- Expected Move Accuracy: ${mkt.expectedMoveAccuracy || 'N/A'}%
+  const userPrompt = `Generate today's market intelligence brief from this live data:
 
-GEX & FLOW:
-- Net GEX: ${mkt.gexRegime || 'N/A'}
-- Call Wall: ${mkt.callWall || 'N/A'}
-- Put Wall: ${mkt.putWall || 'N/A'}
-- Volatility Trigger: ${mkt.volTrigger || 'N/A'}
-- Unusual Flow Signals: ${mkt.unusualFlowCount || 0} detected
-- Top Flow: ${mkt.topFlow || 'None'}
+=== INDICES ===
+S&P 500: ${mkt.spx || '?'} (${mkt.spxChange > 0 ? '+' : ''}${mkt.spxChangePct || '?'}%)
+Dow: ${mkt.dow || '?'} (${mkt.dowChangePct > 0 ? '+' : ''}${mkt.dowChangePct || '?'}%)
+Nasdaq: ${mkt.nasdaq || '?'} (${mkt.nasdaqChangePct > 0 ? '+' : ''}${mkt.nasdaqChangePct || '?'}%)
+VIX: ${mkt.vix || '?'} (chg: ${mkt.vixChange > 0 ? '+' : ''}${mkt.vixChange || '?'})
+VVIX: ${mkt.vvix || '?'} | VVIX/VIX Ratio: ${mkt.vvixVixRatio || '?'}
+Oil: $${mkt.oil || '?'} | 10Y: ${mkt.treasury || '?'}%
 
-TECHNICALS:
-- RSI (14): ${mkt.rsi || 'N/A'}
-- MACD: ${mkt.macd || 'N/A'} (Signal: ${mkt.macdSignal || 'N/A'})
-- Bollinger Position: ${mkt.bollingerPosition || 'N/A'}
+=== VOL REGIME ===
+Regime: ${mkt.regime || '?'} | IV Rank: ${mkt.ivRank || '?'}
+VVIX Signal: ${mkt.vvixSignal || '?'}
+20D Realized Vol: ${mkt.realizedVol || '?'}% | VRP (VIX-RV): ${mkt.vrp || '?'} pts
+Expected Move 1D: +/-${mkt.expectedMove1d || '?'} pts | 1W: +/-${mkt.expectedMove1w || '?'} pts
+EM Accuracy: ${mkt.expectedMoveAccuracy || '?'}%
 
-SECTOR PERFORMANCE:
-${mkt.sectors || 'N/A'}
+=== GAMMA EXPOSURE & FLOW ===
+Net GEX: ${mkt.gexRegime || '?'}
+Call Wall: ${mkt.callWall || '?'} | Put Wall: ${mkt.putWall || '?'} | Vol Trigger: ${mkt.volTrigger || '?'}
+Unusual Flow: ${mkt.unusualFlowCount || 0} signals
+Top Flow: ${mkt.topFlow || 'None detected'}
 
-NEWS SENTIMENT:
-${mkt.sentiment || 'N/A'}
+=== TECHNICALS ===
+RSI(14): ${mkt.rsi || '?'} | MACD: ${mkt.macd || '?'} (Signal: ${mkt.macdSignal || '?'})
+Bollinger: ${mkt.bollingerPosition || '?'}
 
-TOP TRADE RECOMMENDATIONS (from scanner):
-${mkt.topTrades || 'N/A'}
+=== SECTORS ===
+${mkt.sectors || 'No sector data'}
 
-Write the report with these sections:
-1. **MARKET PULSE** (2-3 sentences - the headline takeaway, what happened and why it matters)
-2. **REGIME ANALYSIS** (What the volatility regime, VVIX, VRP, and GEX are telling us about market structure right now)
-3. **KEY LEVELS** (Support/resistance from GEX walls, expected moves, technical levels)
-4. **SECTOR ROTATION** (What sector flows tell us about institutional positioning)
-5. **OPTIONS STRATEGY OUTLOOK** (Given current regime + IV rank + VRP, which strategies have edge today - be specific with strategy types)
-6. **RISK FACTORS** (What could go wrong, what to watch)
-7. **ACTIONABLE TRADES** (Top 3 specific trade ideas with entry, target, stop - based on the scanner data)
-8. **BOTTOM LINE** (One bold sentence - the single most important thing a trader needs to know today)
+=== SENTIMENT ===
+${mkt.sentiment || 'No sentiment data'}
 
-Be direct, opinionated, and specific. No hedging language. Write like a Goldman Sachs morning note, not a blog post. Use numbers and levels, not vague descriptions.`;
+=== SCANNER TOP TRADES ===
+${mkt.topTrades || 'No scanner data'}
+
+Write the brief with exactly these 8 sections:
+
+## MARKET PULSE
+2-3 punchy sentences. What is the market doing and WHY. Lead with the most important signal.
+
+## REGIME ANALYSIS
+Synthesize VIX + VVIX + VRP + GEX into one coherent picture. What kind of market are we in? Is vol cheap or expensive? Is the tape mean-reverting or trending? What does this mean for options sellers vs buyers?
+
+## KEY LEVELS TO WATCH
+- GEX-derived support (put wall) and resistance (call wall)
+- Expected move boundaries for today and this week
+- Bollinger band position and any technical confluence
+
+## SECTOR ROTATION SIGNALS
+Which sectors are leading/lagging and what does that tell us about institutional risk appetite? Any divergences worth noting?
+
+## OPTIONS STRATEGY EDGE
+Given today's regime + IV rank + VRP, which specific strategies have edge RIGHT NOW? Be explicit: "sell 30-delta put spreads" not "consider selling premium." Include DTE recommendations.
+
+## RISK FACTORS
+Top 3 things that could blow up the thesis. Be specific about levels that would invalidate.
+
+## ACTIONABLE TRADES
+Top 3 trade ideas. For each:
+- Ticker / Strategy / Strikes / Expiration
+- Entry price target / Max risk / Reward:Risk ratio
+- Why this trade fits today's regime
+
+## BOTTOM LINE
+One bold, memorable sentence. The single takeaway.`;
 
   try {
     const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const message = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }]
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
     });
 
     const summary = message.content[0].text;

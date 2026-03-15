@@ -5023,28 +5023,48 @@ function renderAISummary(text) {
   const lines = text.split('\n');
   let html = '<div style="padding:8px 12px; font-size:0.84rem; line-height:1.7;">';
 
+  const sectionColors = {
+    'MARKET PULSE': 'var(--cyan)',
+    'REGIME': 'var(--yellow)',
+    'KEY LEVELS': 'var(--green)',
+    'SECTOR': '#b388ff',
+    'OPTIONS STRATEGY': 'var(--cyan)',
+    'RISK': 'var(--red)',
+    'ACTIONABLE': 'var(--orange)',
+    'BOTTOM LINE': 'var(--orange)'
+  };
+  let currentColor = 'var(--cyan)';
+
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) { html += '<div style="height:6px;"></div>'; continue; }
+    if (!trimmed) { html += '<div style="height:8px;"></div>'; continue; }
 
-    // Section headers: **1. MARKET PULSE** or ## MARKET PULSE
-    const hMatch = trimmed.match(/^(?:\*\*)?(?:\d+\.\s*)?(.+?)(?:\*\*)?$/);
-    const isBold = trimmed.startsWith('**') && trimmed.endsWith('**');
     const isH2 = trimmed.startsWith('## ') || trimmed.startsWith('# ');
+    const isBoldHeader = trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.includes(' ');
 
-    if (isBold || isH2) {
-      const headerText = trimmed.replace(/^[#*\d.\s]+/, '').replace(/\*+$/g, '');
-      const isAction = headerText.includes('ACTIONABLE') || headerText.includes('BOTTOM LINE');
-      const color = isAction ? 'var(--orange)' : 'var(--cyan)';
-      html += '<div style="font-weight:700; font-size:0.92rem; color:' + color + '; margin-top:12px; margin-bottom:4px; border-bottom:1px solid ' + color + '33; padding-bottom:3px;">' + headerText + '</div>';
+    if (isH2 || isBoldHeader) {
+      const headerText = trimmed.replace(/^[#*\d.\s]+/, '').replace(/\*+$/g, '').trim();
+      // Match section color
+      currentColor = 'var(--cyan)';
+      for (const [key, color] of Object.entries(sectionColors)) {
+        if (headerText.toUpperCase().includes(key)) { currentColor = color; break; }
+      }
+      html += '<div style="font-weight:700; font-size:0.95rem; color:' + currentColor + '; margin-top:14px; margin-bottom:5px; border-bottom:1px solid ' + currentColor + '44; padding-bottom:4px; letter-spacing:0.5px;">' + headerText + '</div>';
     } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      const bulletText = trimmed.substring(2).replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>');
-      html += '<div style="padding-left:12px; margin:2px 0; color:var(--text-secondary);"><span style="color:var(--cyan); margin-right:6px;">></span>' + bulletText + '</div>';
+      const bulletText = trimmed.substring(2)
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em style="color:var(--text-secondary);">$1</em>');
+      html += '<div style="padding-left:14px; margin:3px 0; color:var(--text-secondary);"><span style="color:' + currentColor + '; margin-right:8px; font-size:0.7rem;">&#9656;</span>' + bulletText + '</div>';
     } else {
       const styled = trimmed
         .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>');
-      html += '<div style="color:var(--text-secondary); margin:2px 0;">' + styled + '</div>';
+      const isBottomLine = currentColor === 'var(--orange)' && !trimmed.startsWith('-');
+      if (isBottomLine && trimmed.length > 20) {
+        html += '<div style="color:var(--orange); font-weight:700; font-size:0.95rem; margin:6px 0; padding:8px 12px; background:var(--orange)11; border-left:3px solid var(--orange); border-radius:4px;">' + styled + '</div>';
+      } else {
+        html += '<div style="color:var(--text-secondary); margin:2px 0;">' + styled + '</div>';
+      }
     }
   }
   html += '</div>';
