@@ -831,8 +831,73 @@ body {
       </div>
     </div>
 
+    <!-- ===== DAILY COMMAND CENTER: First thing you see ===== -->
+    <div class="card" style="border:1px solid var(--cyan); margin-bottom:16px; background:linear-gradient(135deg, rgba(6,182,212,0.05), rgba(139,92,246,0.03));">
+      <div class="card-header" style="padding-bottom:4px;">
+        <span class="card-title" style="color:var(--cyan); font-size:1.05rem;">Daily Command Center</span>
+        <span id="cmdCenterTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
+      </div>
+      <div id="cmdCenterContent">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; padding:0 12px 12px;">
+          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--cyan);">
+            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Regime</div>
+            <div id="cmdRegime" style="font-size:1.1rem; font-weight:700; color:var(--cyan);">--</div>
+            <div id="cmdRegimeLabel" style="font-size:0.7rem; color:var(--text-secondary);">Loading...</div>
+          </div>
+          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--yellow);">
+            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">VIX / IV Rank</div>
+            <div id="cmdVix" style="font-size:1.1rem; font-weight:700; color:var(--yellow);">--</div>
+            <div id="cmdIvRank" style="font-size:0.7rem; color:var(--text-secondary);">--</div>
+          </div>
+          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--green);">
+            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Today's Edge</div>
+            <div id="cmdEdge" style="font-size:1.1rem; font-weight:700; color:var(--green);">--</div>
+            <div id="cmdEdgeDetail" style="font-size:0.7rem; color:var(--text-secondary);">Scanning...</div>
+          </div>
+          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--purple);">
+            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Open Positions</div>
+            <div id="cmdPositions" style="font-size:1.1rem; font-weight:700; color:var(--purple);">0</div>
+            <div id="cmdPosDetail" style="font-size:0.7rem; color:var(--text-secondary);">No positions</div>
+          </div>
+          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--red);">
+            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Action Required</div>
+            <div id="cmdActions" style="font-size:1.1rem; font-weight:700; color:var(--text-muted);">0</div>
+            <div id="cmdActionDetail" style="font-size:0.7rem; color:var(--text-secondary);">All clear</div>
+          </div>
+        </div>
+        <div id="cmdGamePlan" style="padding:0 12px 10px; font-size:0.78rem; color:var(--text-secondary); background:var(--bg-card-alt); margin:0 12px 10px; border-radius:6px; padding:10px 14px; border-left:3px solid var(--cyan);">
+          Loading game plan...
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== POSITIONS NEEDING ACTION: Urgent alerts first ===== -->
+    <div class="card" id="posActionCard" style="border:1px solid var(--red); margin-bottom:16px; display:none;">
+      <div class="card-header" style="padding-bottom:4px;">
+        <span class="card-title" style="color:var(--red);">Positions Needing Action</span>
+        <span class="badge badge-red" id="posActionCount">0</span>
+      </div>
+      <div id="posActionContainer" style="padding:4px 12px 12px;"></div>
+    </div>
+
+    <!-- ===== TOP TRADES PANEL: Unified prioritized recommendations ===== -->
+    <div class="card" style="border:1px solid var(--cyan); margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title" style="color:var(--cyan);">Top Trades Right Now</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="badge" id="topTradesRegime" style="font-size:0.7rem;"></span>
+          <button class="quick-btn" onclick="generateTopTrades()" style="padding:4px 14px; font-size:0.78rem;">Scan All Strategies</button>
+        </div>
+      </div>
+      <div id="topTradesContainer" style="padding:4px 0;">
+        <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
+          Scanning options chains... Top trades auto-populate as data loads.
+        </div>
+      </div>
+    </div>
+
     <!-- AI Market Intelligence Brief -->
-    <div class="card" id="aiBriefCard" style="border:1px solid var(--cyan); margin-bottom:20px; position:relative;">
+    <div class="card" id="aiBriefCard" style="border:1px solid var(--cyan); margin-bottom:16px; position:relative;">
       <div class="card-header">
         <span class="card-title" style="color:var(--cyan);">AI Market Intelligence Brief</span>
         <div style="display:flex; gap:8px; align-items:center;">
@@ -843,7 +908,7 @@ body {
       </div>
       <div id="aiBriefContent" style="padding:4px 0;">
         <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
-          Click "Generate Brief" to create an AI-powered market intelligence report using all live data signals (VVIX, GEX, VRP, flow, technicals, sentiment).
+          Click "Generate Brief" for AI-powered market intelligence using all live signals.
         </div>
       </div>
       <div id="aiBriefLoading" style="display:none; padding:40px; text-align:center;">
@@ -873,22 +938,6 @@ body {
         </div>
         <div style="font-size:0.82rem; line-height:1.9;" id="sectorHeatMap">
           <div style="color:var(--text-muted);padding:20px;text-align:center;">Loading sector data...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== TOP TRADES PANEL: Unified prioritized recommendations ===== -->
-    <div class="card" style="border:1px solid var(--cyan); margin-bottom:20px;">
-      <div class="card-header">
-        <span class="card-title" style="color:var(--cyan);">Top Trades Right Now</span>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <span class="badge" id="topTradesRegime" style="font-size:0.7rem;"></span>
-          <button class="quick-btn" onclick="generateTopTrades()" style="padding:4px 14px; font-size:0.78rem;">Scan All Strategies</button>
-        </div>
-      </div>
-      <div id="topTradesContainer" style="padding:4px 0;">
-        <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
-          Click "Scan All Strategies" or wait for auto-scan to populate ranked trade recommendations across all 9 strategies.
         </div>
       </div>
     </div>
@@ -4295,6 +4344,8 @@ async function updateAllDisplays() {
   updateUnusualFlow();
   updatePortfolioGreeks();
   updateRegimeTransitionAlert();
+  updateCommandCenter();
+  updatePositionAlerts();
 
   // Refresh best plays for active tab
   const activeTab = document.querySelector('.tab.active');
@@ -4304,6 +4355,177 @@ async function updateAllDisplays() {
   if (Object.keys(OPTIONS_CACHE).length > 0) {
     generateTopTrades();
   }
+}
+
+// ===== DAILY COMMAND CENTER =====
+function updateCommandCenter() {
+  const rs = MARKET.regimeScore;
+  const vix = MARKET.vix;
+  const ivRank = MARKET.ivRank;
+  const fmt = v => typeof v === 'number' ? v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) : '--';
+
+  // Timestamp
+  const timeEl = document.getElementById('cmdCenterTime');
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString();
+
+  // Regime card
+  const regimeEl = document.getElementById('cmdRegime');
+  const regimeLabelEl = document.getElementById('cmdRegimeLabel');
+  if (regimeEl) {
+    regimeEl.textContent = rs + '/100';
+    const regimeLabel = rs >= 55 ? 'AGGRESSIVE' : rs >= 35 ? 'CAUTIOUS' : 'DEFENSIVE';
+    const regimeColor = rs >= 55 ? 'var(--green)' : rs >= 35 ? 'var(--yellow)' : 'var(--red)';
+    regimeEl.style.color = regimeColor;
+    regimeLabelEl.textContent = regimeLabel + ' - ' + (rs >= 55 ? 'Full size, sell premium' : rs >= 35 ? 'Half size, defined risk' : 'Minimize exposure');
+    regimeLabelEl.style.color = regimeColor;
+  }
+
+  // VIX card
+  const vixEl = document.getElementById('cmdVix');
+  const ivEl = document.getElementById('cmdIvRank');
+  if (vixEl) {
+    vixEl.textContent = fmt(vix);
+    vixEl.style.color = vix < 20 ? 'var(--green)' : vix < 30 ? 'var(--yellow)' : 'var(--red)';
+    ivEl.textContent = 'IV Rank: ' + ivRank + '/100 | ' + (ivRank > 50 ? 'SELL premium' : 'Premium cheap');
+  }
+
+  // Edge card
+  const edgeEl = document.getElementById('cmdEdge');
+  const edgeDetailEl = document.getElementById('cmdEdgeDetail');
+  if (edgeEl) {
+    const cacheCount = Object.keys(OPTIONS_CACHE).length;
+    if (cacheCount > 0) {
+      // Count trades by grade
+      const container = document.getElementById('topTradesContainer');
+      const aGrades = container ? (container.innerHTML.match(/Score: [789]\d|Score: 100/g) || []).length : 0;
+      const bGrades = container ? (container.innerHTML.match(/Score: 6\d/g) || []).length : 0;
+      const totalGood = aGrades + bGrades;
+      edgeEl.textContent = totalGood + ' Trades';
+      edgeEl.style.color = totalGood > 5 ? 'var(--green)' : totalGood > 0 ? 'var(--yellow)' : 'var(--text-muted)';
+      edgeDetailEl.textContent = aGrades + ' A-grade, ' + bGrades + ' B-grade from ' + cacheCount + ' tickers';
+    } else {
+      edgeEl.textContent = 'Scanning...';
+      edgeEl.style.color = 'var(--text-muted)';
+      edgeDetailEl.textContent = 'Options chains loading...';
+    }
+  }
+
+  // Positions card
+  const posEl = document.getElementById('cmdPositions');
+  const posDetailEl = document.getElementById('cmdPosDetail');
+  if (posEl && typeof positions !== 'undefined') {
+    const openPos = positions.filter(p => {
+      const dte = p.expiry ? Math.ceil((new Date(p.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
+      return dte > 0;
+    });
+    const totalPnL = openPos.reduce((s, p) => s + ((p.current || 0) - p.entry) * p.contracts * 100, 0);
+    posEl.textContent = openPos.length;
+    posEl.style.color = openPos.length > 0 ? 'var(--purple)' : 'var(--text-muted)';
+    posDetailEl.textContent = openPos.length > 0 ? 'P&L: ' + (totalPnL >= 0 ? '+' : '') + '$' + totalPnL.toFixed(0) : 'No open positions';
+    posDetailEl.style.color = totalPnL >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+
+  // Game plan
+  const gamePlanEl = document.getElementById('cmdGamePlan');
+  if (gamePlanEl && MARKET.spx > 0) {
+    const parts = [];
+
+    // Market direction
+    const spxDir = MARKET.spxChange >= 0 ? 'up' : 'down';
+    parts.push('SPX ' + spxDir + ' ' + Math.abs(MARKET.spxChange).toFixed(2) + '% at ' + fmt(MARKET.spx) + '.');
+
+    // VIX context
+    if (vix >= 30) parts.push('VIX at ' + fmt(vix) + ' (CRISIS) -- defend, do not sell naked.');
+    else if (vix >= 25) parts.push('VIX elevated at ' + fmt(vix) + ' -- rich premiums, sell defined-risk spreads.');
+    else if (vix >= 18) parts.push('VIX normal at ' + fmt(vix) + ' -- standard premium selling.');
+    else parts.push('VIX low at ' + fmt(vix) + ' -- premiums thin, consider debit strategies.');
+
+    // Strategy recommendation
+    if (rs >= 55) parts.push('PLAY: Sell iron condors, put credit spreads, jade lizards. Full position sizing.');
+    else if (rs >= 35) parts.push('PLAY: Sell narrow spreads, keep wings tight. 50% position size.');
+    else parts.push('PLAY: Buy puts for protection, sell call spreads only. 25% size or cash.');
+
+    // VRP edge
+    if (MARKET.vrp > 5) parts.push('VRP +' + MARKET.vrp + '% -- IV overpriced, strong seller edge.');
+    else if (MARKET.vrp < -3) parts.push('VRP ' + MARKET.vrp + '% -- IV underpriced, buyers have edge.');
+
+    // Expected move
+    if (MARKET.spx > 0 && vix > 0) {
+      const em1d = (MARKET.spx * (vix / 100) * Math.sqrt(1 / 365)).toFixed(0);
+      parts.push('Expected move today: +/-$' + em1d + ' SPX.');
+    }
+
+    gamePlanEl.innerHTML = '<span style="font-weight:700; color:var(--cyan);">GAME PLAN:</span> ' + parts.join(' ');
+  }
+}
+
+// ===== POSITION ACTION ALERTS (auto-scan) =====
+function updatePositionAlerts() {
+  const card = document.getElementById('posActionCard');
+  const container = document.getElementById('posActionContainer');
+  const countBadge = document.getElementById('posActionCount');
+  const actionsEl = document.getElementById('cmdActions');
+  const actionDetailEl = document.getElementById('cmdActionDetail');
+
+  if (!card || typeof positions === 'undefined' || typeof analyzePosition !== 'function') return;
+
+  const openPos = positions.filter(p => {
+    const dte = p.expiry ? Math.ceil((new Date(p.expiry) - new Date()) / (1000 * 60 * 60 * 24)) : 999;
+    return dte > 0;
+  });
+
+  if (openPos.length === 0) {
+    card.style.display = 'none';
+    if (actionsEl) { actionsEl.textContent = '0'; actionsEl.style.color = 'var(--text-muted)'; }
+    if (actionDetailEl) { actionDetailEl.textContent = 'No positions'; actionDetailEl.style.color = 'var(--text-muted)'; }
+    return;
+  }
+
+  const recs = openPos.map(p => analyzePosition(p));
+  const urgent = recs.filter(r => r.action !== 'HOLD');
+
+  // Update command center action count
+  if (actionsEl) {
+    actionsEl.textContent = urgent.length;
+    actionsEl.style.color = urgent.length > 0 ? 'var(--red)' : 'var(--green)';
+  }
+  if (actionDetailEl) {
+    if (urgent.length > 0) {
+      const closes = urgent.filter(r => r.action === 'CLOSE').length;
+      const rolls = urgent.filter(r => r.action === 'ROLL').length;
+      const adjusts = urgent.filter(r => r.action === 'ADJUST').length;
+      const parts = [];
+      if (closes) parts.push(closes + ' CLOSE');
+      if (rolls) parts.push(rolls + ' ROLL');
+      if (adjusts) parts.push(adjusts + ' ADJUST');
+      actionDetailEl.textContent = parts.join(', ');
+      actionDetailEl.style.color = 'var(--red)';
+    } else {
+      actionDetailEl.textContent = openPos.length + ' positions OK';
+      actionDetailEl.style.color = 'var(--green)';
+    }
+  }
+
+  if (urgent.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+
+  // Show urgent actions card
+  card.style.display = 'block';
+  countBadge.textContent = urgent.length;
+
+  const actionColors = { CLOSE: 'var(--red)', ROLL: 'var(--yellow)', ADJUST: 'var(--cyan)' };
+  container.innerHTML = urgent.map(r => {
+    const color = actionColors[r.action] || 'var(--text-primary)';
+    return '<div style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--border);">' +
+      '<span style="background:' + color + '22; color:' + color + '; padding:3px 10px; border-radius:4px; font-weight:700; font-size:0.8rem; min-width:65px; text-align:center;">' + r.action + '</span>' +
+      '<span style="font-weight:600; min-width:50px;">' + r.symbol + '</span>' +
+      '<span style="font-size:0.75rem; color:var(--text-secondary); flex:1;">' + r.posDesc + '</span>' +
+      '<span style="font-size:0.8rem; color:' + (r.pnl >= 0 ? 'var(--green)' : 'var(--red)') + '; font-weight:600; min-width:70px; text-align:right;">' + (r.pnl >= 0 ? '+' : '') + '$' + r.pnl.toFixed(0) + '</span>' +
+      '<span style="font-size:0.73rem; color:' + color + '; max-width:300px;">' + r.suggestion + '</span>' +
+    '</div>';
+  }).join('');
 }
 
 // ===== GEX DASHBOARD RENDERER =====
@@ -5725,11 +5947,20 @@ function generateTopTrades() {
     '<th style="padding:6px 8px; text-align:right;">Credit</th>' +
     '<th style="padding:6px 8px; text-align:right;">Risk</th>' +
     '<th style="padding:6px 8px; text-align:center;">DTE</th>' +
+    '<th style="padding:6px 8px; text-align:center;">Size</th>' +
     '<th style="padding:6px 8px; text-align:center;">Horizon</th>' +
     '</tr></thead><tbody>' +
     top.map((p, i) => {
       const returnPct = p.maxRisk ? ((p.credit / p.maxRisk) * 100).toFixed(0) : '--';
       const horizonColor = p.horizon === 'DAY' ? 'var(--red)' : p.horizon === 'SWING' ? 'var(--yellow)' : 'var(--green)';
+      // Position sizing: 2% risk per trade on $100k account, adjusted by regime
+      const acctSize = 100000;
+      const riskPct = rs >= 55 ? 0.02 : rs >= 35 ? 0.01 : 0.005; // 2% / 1% / 0.5% based on regime
+      const maxRiskPerTrade = acctSize * riskPct;
+      const riskPerContract = p.maxRisk ? parseFloat(p.maxRisk) * 100 : 500;
+      const suggestedContracts = Math.max(1, Math.min(10, Math.floor(maxRiskPerTrade / riskPerContract)));
+      const totalCredit = (p.credit * suggestedContracts * 100).toFixed(0);
+      const totalRisk = (riskPerContract * suggestedContracts).toFixed(0);
       return '<tr style="border-top:1px solid var(--border);' + (i === 0 ? 'background:rgba(6,182,212,0.08);' : '') + '">' +
         '<td style="padding:8px; font-weight:700; color:var(--cyan);">' + (i + 1) + '</td>' +
         '<td style="padding:8px;">' + signalScoreBadge(p.score) + '</td>' +
@@ -5739,6 +5970,7 @@ function generateTopTrades() {
         '<td style="padding:8px; text-align:right; color:var(--green); font-weight:600;">$' + (p.credit||0).toFixed(2) + '</td>' +
         '<td style="padding:8px; text-align:right; color:var(--text-muted);">' + (p.maxRisk ? '$' + parseFloat(p.maxRisk).toFixed(2) : '--') + ' <span style="font-size:0.65rem;">(' + returnPct + '%)</span></td>' +
         '<td style="padding:8px; text-align:center;">' + (p.dte||'--') + '</td>' +
+        '<td style="padding:8px; text-align:center;"><span style="font-size:0.72rem; font-weight:600; color:var(--purple);">' + suggestedContracts + 'x</span><br><span style="font-size:0.6rem; color:var(--text-muted);">$' + totalCredit + ' / $' + totalRisk + '</span></td>' +
         '<td style="padding:8px; text-align:center;"><span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:' + horizonColor + '22; color:' + horizonColor + '; font-weight:600;">' + p.horizon + '</span></td>' +
         '</tr>';
     }).join('') +
