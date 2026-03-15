@@ -387,6 +387,142 @@ One bold, memorable sentence. The single takeaway.`;
   }
 });
 
+// ─── Server-Side AI Brief (gathers data + calls Claude) ─────────
+async function gatherMarketSnapshot() {
+  const mkt = {};
+  const symbols = {
+    spx: '%5EGSPC', vix: '%5EVIX', dow: '%5EDJI', nasdaq: '%5EIXIC',
+    oil: 'CL%3DF', treasury: '%5ETNX'
+  };
+  for (const [name, sym] of Object.entries(symbols)) {
+    try {
+      const r = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5d&interval=1d&includePrePost=false`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
+      });
+      const result = r.data.chart.result[0];
+      const meta = result.meta;
+      const closes = result.indicators.quote[0].close;
+      const prevClose = meta.chartPreviousClose || closes[closes.length - 2];
+      const price = meta.regularMarketPrice;
+      mkt[name] = { price, prevClose, change: +(price - prevClose).toFixed(2), changePct: +((price - prevClose) / prevClose * 100).toFixed(2) };
+    } catch (e) { console.error(`AI Brief snapshot: ${name} failed:`, e.message); }
+  }
+
+  const sectorSymbols = ['XLE','XLK','XLF','XLV','XLU','XLY','XLP','XLI','XLB','XLRE','IWM','QQQ'];
+  const sectors = [];
+  for (const sym of sectorSymbols) {
+    try {
+      const r = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?range=5d&interval=1d`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000
+      });
+      const result = r.data.chart.result[0];
+      const meta = result.meta;
+      const closes = result.indicators.quote[0].close;
+      const prevClose = meta.chartPreviousClose || closes[closes.length - 2];
+      const price = meta.regularMarketPrice;
+      const chg = ((price - prevClose) / prevClose * 100).toFixed(2);
+      sectors.push(`${sym}: ${chg > 0 ? '+' : ''}${chg}%`);
+    } catch (e) { /* skip */ }
+  }
+
+  const vix = mkt.vix?.price || 20;
+  const spx = mkt.spx?.price || 0;
+  const ivRank = Math.min(100, Math.max(0, Math.round((vix - 12) / (40 - 12) * 100)));
+  const regime = vix < 15 ? 'Low Volatility' : vix < 20 ? 'Normal' : vix < 30 ? 'Elevated' : 'Crisis';
+  const em1d = spx ? (spx * (vix / 100) * Math.sqrt(1 / 365)).toFixed(1) : '?';
+  const em1w = spx ? (spx * (vix / 100) * Math.sqrt(5 / 365)).toFixed(1) : '?';
+
+  return {
+    spx: spx, spxChangePct: mkt.spx?.changePct || '?', spxChange: mkt.spx?.change || 0,
+    dow: mkt.dow?.price || '?', dowChangePct: mkt.dow?.changePct || '?',
+    nasdaq: mkt.nasdaq?.price || '?', nasdaqChangePct: mkt.nasdaq?.changePct || '?',
+    vix, vixChange: mkt.vix?.change || 0,
+    oil: mkt.oil?.price || '?', treasury: mkt.treasury?.price || '?',
+    regime, ivRank, expectedMove1d: em1d, expectedMove1w: em1w,
+    sectors: sectors.join(', ') || 'No sector data',
+    // Server-side doesn't have VVIX, GEX, technicals -- mark as unavailable
+    vvix: '?', vvixVixRatio: '?', vvixSignal: '?',
+    realizedVol: '?', vrp: '?', expectedMoveAccuracy: '?',
+    gexRegime: '?', callWall: '?', putWall: '?', volTrigger: '?',
+    unusualFlowCount: 0, topFlow: 'Server-side (no options data)',
+    rsi: '?', macd: '?', macdSignal: '?', bollingerPosition: '?',
+    sentiment: '?', topTrades: 'No scanner data (server-side)'
+  };
+}
+
+app.get('/api/ai-brief', async (req, res) => {
+  if (!ANTHROPIC_API_KEY) return res.status(400).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+  // Return cached if fresh
+  if (aiSummaryCache.data && Date.now() - aiSummaryCache.time < AI_SUMMARY_CACHE_TTL) {
+    return res.json(aiSummaryCache.data);
+  }
+
+  try {
+    const mkt = await gatherMarketSnapshot();
+
+    const systemPrompt = `You are a senior options strategist at a top-tier hedge fund. You write the morning intelligence brief that the portfolio managers read before the open. Your analysis is known for being brutally direct, numerically precise, and immediately actionable. You never hedge or equivocate. You interpret data through the lens of an options trader who sells premium for a living.
+
+RULES:
+- Every claim must reference a specific number from the data provided
+- Name exact strike prices, expiration dates, and spread widths in trade ideas
+- Interpret VIX level and IV rank together to determine vol regime
+- When IV rank is high, lean toward selling premium. When low, lean toward buying
+- Use bold (**text**) for key numbers, levels, and trade tickers
+- Each section header must be on its own line starting with ## (e.g., ## MARKET PULSE)
+- Use bullet points (- ) for lists within sections
+- Keep total response between 500-700 words -- dense, not padded`;
+
+    const userPrompt = `Generate today's market intelligence brief from this live data:
+
+=== INDICES ===
+S&P 500: ${mkt.spx} (${mkt.spxChange > 0 ? '+' : ''}${mkt.spxChangePct}%)
+Dow: ${mkt.dow} (${mkt.dowChangePct > 0 ? '+' : ''}${mkt.dowChangePct}%)
+Nasdaq: ${mkt.nasdaq} (${mkt.nasdaqChangePct > 0 ? '+' : ''}${mkt.nasdaqChangePct}%)
+VIX: ${mkt.vix} (chg: ${mkt.vixChange > 0 ? '+' : ''}${mkt.vixChange})
+Oil: $${mkt.oil} | 10Y: ${mkt.treasury}%
+
+=== VOL REGIME ===
+Regime: ${mkt.regime} | IV Rank: ${mkt.ivRank}
+Expected Move 1D: +/-${mkt.expectedMove1d} pts | 1W: +/-${mkt.expectedMove1w} pts
+
+=== SECTORS ===
+${mkt.sectors}
+
+Write the brief with these sections:
+## MARKET PULSE (2-3 punchy sentences)
+## REGIME ANALYSIS (vol regime, IV rank interpretation)
+## KEY LEVELS TO WATCH (expected moves, support/resistance)
+## SECTOR ROTATION SIGNALS (leaders/laggers)
+## OPTIONS STRATEGY EDGE (specific strategies for today's regime)
+## RISK FACTORS (top 3 risks)
+## ACTIONABLE TRADES (top 3 trade ideas with strikes/DTE)
+## BOTTOM LINE (one bold sentence)`;
+
+    const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    });
+
+    const result = {
+      summary: message.content[0].text,
+      generatedAt: new Date().toISOString(),
+      model: message.model,
+      usage: message.usage,
+      source: 'server-side'
+    };
+
+    aiSummaryCache = { data: result, time: Date.now() };
+    res.json(result);
+  } catch (e) {
+    console.error('AI Brief (server-side) failed:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── PDF Daily Report Generator ─────────────────────────────────
 app.post('/api/generate-report', async (req, res) => {
   const data = req.body || {};

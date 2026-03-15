@@ -34,7 +34,7 @@ body {
 .header {
   background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
   border-bottom: 1px solid var(--border);
-  padding: 16px 24px;
+  padding: 10px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -79,9 +79,9 @@ body {
   overflow-x: auto;
 }
 .tab {
-  padding: 12px 20px;
+  padding: 8px 14px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   border-bottom: 2px solid transparent;
   white-space: nowrap;
@@ -103,12 +103,12 @@ body {
 }
 .tab-group:last-child { border-right: none; }
 .tab-group-label {
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding: 12px 8px 12px 12px;
+  padding: 8px 6px 8px 10px;
   white-space: nowrap;
   user-select: none;
 }
@@ -164,37 +164,37 @@ body {
 .play-edge { color: var(--green); font-weight: 600; font-size: 0.78rem; margin-top: 6px; }
 
 /* Main grid */
-.main { padding: 20px; }
+.main { padding: 14px 20px; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
 /* Market overview cards */
 .market-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .market-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 .market-card .label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 .market-card .value {
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
 }
 .market-card .change {
-  font-size: 0.85rem;
-  margin-top: 4px;
+  font-size: 0.78rem;
+  margin-top: 2px;
 }
 .up { color: var(--green); }
 .down { color: var(--red); }
@@ -832,41 +832,55 @@ body {
     </div>
 
     <!-- ===== DAILY COMMAND CENTER: First thing you see ===== -->
-    <div class="card" style="border:1px solid var(--cyan); margin-bottom:16px; background:linear-gradient(135deg, rgba(6,182,212,0.05), rgba(139,92,246,0.03));">
-      <div class="card-header" style="padding-bottom:4px;">
+    <div class="card" style="border:1px solid var(--cyan); margin-bottom:12px; padding:14px 16px; background:linear-gradient(135deg, rgba(6,182,212,0.05), rgba(139,92,246,0.03));">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <span class="card-title" style="color:var(--cyan); font-size:1.05rem;">Daily Command Center</span>
-        <span id="cmdCenterTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="cmdCenterTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
+          <span id="aiBriefTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
+          <button class="quick-btn" id="aiBriefDownloadBtn" onclick="downloadDailyReport()" style="padding:4px 12px; font-size:0.75rem; display:none;" title="Download full daily report as PDF">PDF</button>
+          <button class="quick-btn" id="aiBriefBtn" onclick="generateAISummary()" style="padding:5px 14px; font-size:0.78rem; background:linear-gradient(135deg, rgba(6,182,212,0.2), rgba(139,92,246,0.2)); border:1px solid var(--cyan); color:var(--cyan); font-weight:600;">AI Brief</button>
+        </div>
       </div>
       <div id="cmdCenterContent">
-        <div style="display:flex; gap:10px; flex-wrap:wrap; padding:0 12px 12px;">
-          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--cyan);">
-            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Regime</div>
-            <div id="cmdRegime" style="font-size:1.1rem; font-weight:700; color:var(--cyan);">--</div>
-            <div id="cmdRegimeLabel" style="font-size:0.7rem; color:var(--text-secondary);">Loading...</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--cyan);">
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Regime</div>
+            <div id="cmdRegime" style="font-size:1rem; font-weight:700; color:var(--cyan);">--</div>
+            <div id="cmdRegimeLabel" style="font-size:0.68rem; color:var(--text-secondary);">Loading...</div>
           </div>
-          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--yellow);">
-            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">VIX / IV Rank</div>
-            <div id="cmdVix" style="font-size:1.1rem; font-weight:700; color:var(--yellow);">--</div>
-            <div id="cmdIvRank" style="font-size:0.7rem; color:var(--text-secondary);">--</div>
+          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--yellow);">
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">VIX / IV Rank</div>
+            <div id="cmdVix" style="font-size:1rem; font-weight:700; color:var(--yellow);">--</div>
+            <div id="cmdIvRank" style="font-size:0.68rem; color:var(--text-secondary);">--</div>
           </div>
-          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--green);">
-            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Today's Edge</div>
-            <div id="cmdEdge" style="font-size:1.1rem; font-weight:700; color:var(--green);">--</div>
-            <div id="cmdEdgeDetail" style="font-size:0.7rem; color:var(--text-secondary);">Scanning...</div>
+          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--green);">
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Today's Edge</div>
+            <div id="cmdEdge" style="font-size:1rem; font-weight:700; color:var(--green);">--</div>
+            <div id="cmdEdgeDetail" style="font-size:0.68rem; color:var(--text-secondary);">Scanning...</div>
           </div>
-          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--purple);">
-            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Open Positions</div>
-            <div id="cmdPositions" style="font-size:1.1rem; font-weight:700; color:var(--purple);">0</div>
-            <div id="cmdPosDetail" style="font-size:0.7rem; color:var(--text-secondary);">No positions</div>
+          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--purple);">
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Positions</div>
+            <div id="cmdPositions" style="font-size:1rem; font-weight:700; color:var(--purple);">0</div>
+            <div id="cmdPosDetail" style="font-size:0.68rem; color:var(--text-secondary);">No positions</div>
           </div>
-          <div style="flex:1; min-width:140px; background:var(--bg-card-alt); border-radius:8px; padding:10px 14px; border-left:3px solid var(--red);">
-            <div style="font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Action Required</div>
-            <div id="cmdActions" style="font-size:1.1rem; font-weight:700; color:var(--text-muted);">0</div>
-            <div id="cmdActionDetail" style="font-size:0.7rem; color:var(--text-secondary);">All clear</div>
+          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--red);">
+            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Action</div>
+            <div id="cmdActions" style="font-size:1rem; font-weight:700; color:var(--text-muted);">0</div>
+            <div id="cmdActionDetail" style="font-size:0.68rem; color:var(--text-secondary);">All clear</div>
           </div>
         </div>
-        <div id="cmdGamePlan" style="padding:0 12px 10px; font-size:0.78rem; color:var(--text-secondary); background:var(--bg-card-alt); margin:0 12px 10px; border-radius:6px; padding:10px 14px; border-left:3px solid var(--cyan);">
+        <div id="cmdGamePlan" style="font-size:0.78rem; color:var(--text-secondary); background:var(--bg-card-alt); border-radius:6px; padding:10px 14px; border-left:3px solid var(--cyan); margin-bottom:0;">
           Loading game plan...
+        </div>
+        <!-- AI Brief renders inline here -->
+        <div id="aiBriefContent" style="display:none; margin-top:10px;"></div>
+        <div id="aiBriefLoading" style="display:none; padding:30px; text-align:center;">
+          <div style="color:var(--cyan); font-size:0.9rem; font-weight:600;">Generating AI Market Brief...</div>
+          <div style="color:var(--text-muted); font-size:0.78rem; margin-top:6px;">Claude is analyzing all market signals</div>
+          <div style="margin-top:10px; height:3px; background:var(--border); border-radius:2px; overflow:hidden;">
+            <div style="height:100%; width:60%; background:var(--cyan); border-radius:2px; animation: pulse 1.5s ease-in-out infinite;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -880,45 +894,26 @@ body {
       <div id="posActionContainer" style="padding:4px 12px 12px;"></div>
     </div>
 
-    <!-- ===== TOP TRADES PANEL: Unified prioritized recommendations ===== -->
-    <div class="card" style="border:1px solid var(--cyan); margin-bottom:16px;">
-      <div class="card-header">
-        <span class="card-title" style="color:var(--cyan);">Top Trades Right Now</span>
-        <div style="display:flex; gap:8px; align-items:center;">
+    <!-- ===== TOP TRADES PANEL: Collapsible ===== -->
+    <div class="card" style="border:1px solid var(--cyan); margin-bottom:12px; padding:14px 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleTopTrades()">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="card-title" style="color:var(--cyan);">Top Trades Right Now</span>
           <span class="badge" id="topTradesRegime" style="font-size:0.7rem;"></span>
-          <button class="quick-btn" onclick="generateTopTrades()" style="padding:4px 14px; font-size:0.78rem;">Scan All Strategies</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="quick-btn" onclick="event.stopPropagation(); generateTopTrades()" style="padding:4px 12px; font-size:0.75rem;">Rescan</button>
+          <span id="topTradesToggle" style="color:var(--text-muted); font-size:0.9rem; transition:transform 0.2s;">&#9660;</span>
         </div>
       </div>
-      <div id="topTradesContainer" style="padding:4px 0;">
-        <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
+      <div id="topTradesContainer" style="padding:4px 0; margin-top:8px;">
+        <div style="color:var(--text-muted); font-size:0.82rem; padding:20px; text-align:center;">
           Scanning options chains... Top trades auto-populate as data loads.
         </div>
       </div>
     </div>
 
-    <!-- AI Market Intelligence Brief -->
-    <div class="card" id="aiBriefCard" style="border:1px solid var(--cyan); margin-bottom:16px; position:relative;">
-      <div class="card-header">
-        <span class="card-title" style="color:var(--cyan);">AI Market Intelligence Brief</span>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <span id="aiBriefTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
-          <button class="quick-btn" id="aiBriefDownloadBtn" onclick="downloadDailyReport()" style="padding:4px 14px; font-size:0.78rem; display:none;" title="Download full daily report as PDF">Download PDF</button>
-          <button class="quick-btn" id="aiBriefBtn" onclick="generateAISummary()" style="padding:4px 14px; font-size:0.78rem;">Generate Brief</button>
-        </div>
-      </div>
-      <div id="aiBriefContent" style="padding:4px 0;">
-        <div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">
-          Click "Generate Brief" for AI-powered market intelligence using all live signals.
-        </div>
-      </div>
-      <div id="aiBriefLoading" style="display:none; padding:40px; text-align:center;">
-        <div style="color:var(--cyan); font-size:0.9rem; font-weight:600;">Generating AI Market Brief...</div>
-        <div style="color:var(--text-muted); font-size:0.78rem; margin-top:8px;">Claude is analyzing all market signals</div>
-        <div style="margin-top:12px; height:3px; background:var(--border); border-radius:2px; overflow:hidden;">
-          <div style="height:100%; width:60%; background:var(--cyan); border-radius:2px; animation: pulse 1.5s ease-in-out infinite;"></div>
-        </div>
-      </div>
-    </div>
+    <!-- AI Brief is now integrated into Daily Command Center above -->
 
     <div class="grid-2">
       <div class="card">
@@ -4976,17 +4971,26 @@ async function generateAISummary() {
 
   btn.disabled = true;
   btn.textContent = 'Generating...';
+  btn.style.opacity = '0.6';
   content.style.display = 'none';
   loading.style.display = 'block';
 
   try {
+    // Try client-side data POST first (richer data), fallback to server-side GET
+    let resp;
     const mktData = gatherMarketDataForAI();
-    const resp = await fetch('/api/ai-summary', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mktData)
-    });
-
+    const hasClientData = mktData.spx && mktData.spx > 0;
+    if (hasClientData) {
+      resp = await fetch('/api/ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mktData)
+      });
+    }
+    if (!resp || !resp.ok) {
+      // Fallback: server gathers its own data
+      resp = await fetch('/api/ai-brief');
+    }
     if (!resp.ok) {
       const err = await resp.json();
       throw new Error(err.error || 'Failed to generate summary');
@@ -5005,10 +5009,11 @@ async function generateAISummary() {
     const genTime = new Date(result.generatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     timeEl.textContent = 'Generated ' + genTime;
 
-    btn.textContent = 'Refresh Brief';
+    btn.textContent = 'Refresh';
     btn.disabled = false;
+    btn.style.opacity = '1';
   } catch (e) {
-    content.innerHTML = '<div style="color:var(--red); padding:20px; text-align:center;">' +
+    content.innerHTML = '<div style="color:var(--red); padding:16px; text-align:center;">' +
       '<div style="font-weight:600;">Failed to generate AI brief</div>' +
       '<div style="font-size:0.78rem; margin-top:6px; color:var(--text-muted);">' + e.message + '</div>' +
       '<div style="font-size:0.72rem; margin-top:8px; color:var(--text-muted);">Ensure ANTHROPIC_API_KEY is set in Railway env vars.</div></div>';
@@ -5016,6 +5021,7 @@ async function generateAISummary() {
     loading.style.display = 'none';
     btn.textContent = 'Retry';
     btn.disabled = false;
+    btn.style.opacity = '1';
   }
 }
 
@@ -5135,6 +5141,9 @@ async function initLiveData() {
     // Re-scan every 3 minutes (respects per-ticker cooldown inside scanner)
     setInterval(runPriorityScan, 180000);
   }, 3000);
+
+  // Auto-generate AI brief after data loads (10s delay for data to populate)
+  setTimeout(() => { generateAISummary(); }, 10000);
 }
 
 // Save Polygon key if not already stored
@@ -5815,6 +5824,19 @@ function tradeReasoning(score, opts) {
 // Filter plays by minimum score threshold
 function filterByScore(plays, minScore) {
   return plays.filter(p => !p.score || p.score.composite >= minScore);
+}
+
+// ===== TOP TRADES: Toggle collapse =====
+function toggleTopTrades() {
+  const container = document.getElementById('topTradesContainer');
+  const toggle = document.getElementById('topTradesToggle');
+  if (container.style.display === 'none') {
+    container.style.display = 'block';
+    toggle.innerHTML = '&#9660;';
+  } else {
+    container.style.display = 'none';
+    toggle.innerHTML = '&#9654;';
+  }
 }
 
 // ===== TOP TRADES: Unified cross-strategy ranked recommendations =====
