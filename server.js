@@ -1,11 +1,60 @@
 const express = require('express');
 const https = require('https');
+const http = require('http');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 app.use(express.json());
+
+// ─── Environment Detection ──────────────────────────────────────
+const IS_CLOUD = process.env.RAILWAY_ENVIRONMENT || process.env.RENDER || process.env.NODE_ENV === 'production';
+const PORT = process.env.PORT || 3847;
+const SITE_PASSWORD = process.env.SITE_PASSWORD || ''; // Set in Railway env vars
+
+// ─── Password Protection (cloud only) ──────────────────────────
+if (IS_CLOUD && SITE_PASSWORD) {
+  app.use((req, res, next) => {
+    // Skip auth for callback (Schwab redirect) and health check
+    if (req.path === '/callback' || req.path === '/health') return next();
+    // Check cookie
+    if (req.headers.cookie && req.headers.cookie.includes('auth=granted')) return next();
+    // Check if submitting password
+    if (req.method === 'POST' && req.path === '/login') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        const params = new URLSearchParams(body);
+        if (params.get('password') === SITE_PASSWORD) {
+          res.setHeader('Set-Cookie', 'auth=granted; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000');
+          return res.redirect('/');
+        }
+        return res.send(loginPage('Wrong password'));
+      });
+      return;
+    }
+    // Show login page
+    if (req.path === '/login' || req.accepts('html')) {
+      return res.send(loginPage());
+    }
+    return res.status(401).json({ error: 'Authentication required' });
+  });
+}
+
+function loginPage(error) {
+  return `<!DOCTYPE html>
+<html><head><title>Login</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="background:#0f0f23;color:#e2e8f0;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+  <form method="POST" action="/login" style="background:#1a1a2e;padding:40px;border-radius:12px;border:1px solid #334155;text-align:center;min-width:300px;">
+    <h2 style="color:#06b6d4;margin:0 0 24px;">Options Command Center</h2>
+    ${error ? `<p style="color:#ef4444;font-size:0.85rem;">${error}</p>` : ''}
+    <input type="password" name="password" placeholder="Enter password" autofocus
+      style="width:100%;padding:12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:1rem;box-sizing:border-box;margin-bottom:16px;">
+    <button type="submit" style="width:100%;padding:12px;background:#06b6d4;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">Enter</button>
+  </form>
+</body></html>`;
+}
 
 // Intercept root requests with ?code= parameter (Schwab OAuth callback)
 app.use((req, res, next) => {
@@ -19,11 +68,11 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname)));
 
-// ─── Client Dashboard ────────────────────────────────────────
-// Serve client dashboard at /clients
-app.use('/clients', express.static(path.join(__dirname, 'client-dashboard')));
+// Health check for Railway
+app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
-// Daily snapshot data endpoint — clients fetch this instead of hitting APIs directly
+// ─── Client Dashboard ────────────────────────────────────────
+app.use('/clients', express.static(path.join(__dirname, 'client-dashboard')));
 const SNAPSHOT_FILE = path.join(__dirname, 'client-dashboard', 'daily-snapshot.json');
 
 app.get('/clients/api/snapshot', (req, res) => {
@@ -35,12 +84,10 @@ app.get('/clients/api/snapshot', (req, res) => {
   }
 });
 
-// Generate daily snapshot — call this manually or via scheduled task
 app.post('/clients/api/generate-snapshot', async (req, res) => {
   try {
     const snapshot = { generatedAt: new Date().toISOString(), market: {}, sectors: {}, news: [], regime: {} };
 
-    // Fetch core market data from Yahoo
     const symbols = {
       spx: '%5EGSPC', vix: '%5EVIX', dow: '%5EDJI', nasdaq: '%5EIXIC',
       oil: 'CL%3DF', treasury: '%5ETNX'
@@ -65,7 +112,6 @@ app.post('/clients/api/generate-snapshot', async (req, res) => {
       }
     }
 
-    // Fetch sector data
     const sectorSymbols = ['XLE','XLK','XLF','XLV','XLU','XLY','XLP','XLI','XLB','XLRE','IWM','QQQ'];
     for (const sym of sectorSymbols) {
       try {
@@ -85,7 +131,6 @@ app.post('/clients/api/generate-snapshot', async (req, res) => {
       }
     }
 
-    // Derive regime
     const vix = snapshot.market.vix?.price || 20;
     snapshot.regime = {
       vix,
@@ -95,7 +140,6 @@ app.post('/clients/api/generate-snapshot', async (req, res) => {
       expectedMove1w: snapshot.market.spx ? (snapshot.market.spx.price * (vix / 100) * Math.sqrt(5 / 365)).toFixed(1) : null
     };
 
-    // Fetch news from Finnhub if key available
     const finnhubKey = process.env.FINNHUB_KEY || '';
     if (finnhubKey) {
       try {
@@ -118,17 +162,22 @@ app.post('/clients/api/generate-snapshot', async (req, res) => {
   }
 });
 
-const PORT = 3847;
+// ─── Schwab Configuration ──────────────────────────────────────
 const CONFIG_FILE = path.join(__dirname, 'schwab_config.json');
 const TOKENS_FILE = path.join(__dirname, 'schwab_tokens.json');
 const SCHWAB_AUTH_BASE = 'https://api.schwabapi.com/v1/oauth';
 const SCHWAB_API_BASE = 'https://api.schwabapi.com';
-// Must match EXACTLY what's registered in Schwab Developer Portal
-const REDIRECT_URI = 'https://127.0.0.1';
+
+// Redirect URI: use env var on cloud, fallback for local
+const REDIRECT_URI = process.env.SCHWAB_REDIRECT_URI || 'https://127.0.0.1';
 
 // ─── Token Storage ──────────────────────────────────────────────
 
 function loadConfig() {
+  // Cloud: use env vars; Local: use config file
+  if (IS_CLOUD && process.env.SCHWAB_APP_KEY) {
+    return { appKey: process.env.SCHWAB_APP_KEY, secret: process.env.SCHWAB_APP_SECRET };
+  }
   try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { return null; }
 }
 
@@ -149,7 +198,7 @@ function saveTokens(data) {
 function isTokenValid() {
   const tokens = loadTokens();
   if (!tokens || !tokens.accessToken) return false;
-  return tokens.expiresAt > Date.now() + 60000; // 1 min buffer
+  return tokens.expiresAt > Date.now() + 60000;
 }
 
 async function refreshAccessToken() {
@@ -172,7 +221,8 @@ async function refreshAccessToken() {
       accessToken: res.data.access_token,
       refreshToken: res.data.refresh_token || tokens.refreshToken,
       expiresAt: Date.now() + (res.data.expires_in * 1000),
-      accountHash: tokens.accountHash
+      accountHash: tokens.accountHash,
+      accountNumber: tokens.accountNumber
     };
     saveTokens(newTokens);
     console.log('Token refreshed successfully');
@@ -222,15 +272,12 @@ app.get('/schwab/auth-url', (req, res) => {
   const config = loadConfig();
   if (!config) return res.status(400).json({ error: 'Save credentials first' });
   const url = `${SCHWAB_AUTH_BASE}/authorize?client_id=${config.appKey}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code`;
-  console.log('Auth URL generated:', url);
-  console.log('Redirect URI:', REDIRECT_URI);
+  console.log('Auth URL generated with redirect_uri:', REDIRECT_URI);
   res.json({ url });
 });
 
 app.get('/callback', async (req, res) => {
   console.log('Callback hit! Full URL:', req.originalUrl);
-  console.log('Query params:', req.query);
-  console.log('Headers referer:', req.headers.referer || 'none');
   const code = req.query.code;
   if (!code) return res.send(`<h2>Error: No authorization code received</h2><pre>Query: ${JSON.stringify(req.query, null, 2)}</pre>`);
 
@@ -256,7 +303,6 @@ app.get('/callback', async (req, res) => {
       accountHash: null
     };
 
-    // Fetch account hash
     try {
       const acctRes = await axios.get(`${SCHWAB_API_BASE}/trader/v1/accounts/accountNumbers`, {
         headers: { 'Authorization': `Bearer ${tokenData.accessToken}` }
@@ -288,10 +334,9 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// Manual code entry (when popup redirect fails due to self-signed cert)
+// Manual code entry (fallback)
 app.get('/schwab/manual-callback', async (req, res) => {
   const code = req.query.code;
-  console.log('Manual callback with code:', code ? code.substring(0, 20) + '...' : 'NONE');
   if (!code) return res.json({ success: false, error: 'No code provided' });
 
   const config = loadConfig();
@@ -376,7 +421,6 @@ app.post('/schwab/orders', requireAuth, async (req, res) => {
       req.body,
       { headers: { 'Authorization': `Bearer ${req.schwabToken}`, 'Content-Type': 'application/json' } }
     );
-    // Schwab returns 201 with Location header containing order ID
     const location = r.headers['location'] || '';
     const orderId = location.split('/').pop();
     res.json({ success: true, orderId, status: r.status });
@@ -415,34 +459,62 @@ app.get('/schwab/orders/:orderId', requireAuth, async (req, res) => {
 
 // ─── Start ──────────────────────────────────────────────────────
 
-const sslOptions = {
-  key: fs.readFileSync(path.join(__dirname, 'server-key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, 'server-cert.pem'))
-};
+if (IS_CLOUD) {
+  // Cloud: plain HTTP (Railway/Render handles SSL)
+  app.listen(PORT, async () => {
+    console.log(`\n  Options Trading Dashboard (CLOUD)`);
+    console.log(`  ──────────────────────────────────`);
+    console.log(`  Port: ${PORT}`);
+    console.log(`  Schwab redirect: ${REDIRECT_URI}`);
+    console.log(`  Password protected: ${SITE_PASSWORD ? 'YES' : 'NO'}\n`);
 
-https.createServer(sslOptions, app).listen(PORT, async () => {
-  console.log(`\n  Options Trading Dashboard`);
-  console.log(`  ────────────────────────`);
-  console.log(`  Dashboard:  https://127.0.0.1:${PORT}`);
-  console.log(`  Clients:    https://127.0.0.1:${PORT}/clients`);
-  console.log(`  Schwab CB:  https://127.0.0.1:${PORT}/callback`);
-  console.log(`  Alt CB:     https://127.0.0.1 (port 443)\n`);
+    const tokens = loadTokens();
+    if (tokens && tokens.refreshToken) {
+      const ok = await refreshAccessToken();
+      console.log(ok ? '  Schwab: Auto-reconnected ✓' : '  Schwab: Token expired — please reconnect');
+    } else {
+      console.log('  Schwab: Not connected');
+    }
+  });
+} else {
+  // Local: HTTPS with SSL certs
+  const certPath = path.join(__dirname, 'server-cert.pem');
+  const keyPath = path.join(__dirname, 'server-key.pem');
 
-  // Also listen on 443 to catch redirects to https://127.0.0.1 (no port)
-  try {
-    https.createServer(sslOptions, app).listen(443, () => {
-      console.log('  Port 443 listener active ✓');
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    const sslOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath)
+    };
+
+    https.createServer(sslOptions, app).listen(PORT, async () => {
+      console.log(`\n  Options Trading Dashboard (LOCAL)`);
+      console.log(`  ──────────────────────────────────`);
+      console.log(`  Dashboard:  https://127.0.0.1:${PORT}`);
+      console.log(`  Schwab CB:  ${REDIRECT_URI}\n`);
+
+      // Also listen on 443 for https://127.0.0.1 redirects
+      try {
+        https.createServer(sslOptions, app).listen(443, () => {
+          console.log('  Port 443 listener active ✓');
+        });
+      } catch (e) {
+        console.log('  Port 443 unavailable:', e.code);
+      }
+
+      const tokens = loadTokens();
+      if (tokens && tokens.refreshToken) {
+        const ok = await refreshAccessToken();
+        console.log(ok ? '  Schwab: Auto-reconnected ✓' : '  Schwab: Token expired — please reconnect');
+      } else {
+        console.log('  Schwab: Not connected');
+      }
     });
-  } catch (e) {
-    console.log('  Port 443 unavailable (need admin):', e.code);
-  }
-
-  // Try to refresh token on startup
-  const tokens = loadTokens();
-  if (tokens && tokens.refreshToken) {
-    const ok = await refreshAccessToken();
-    console.log(ok ? '  Schwab: Auto-reconnected ✓' : '  Schwab: Token expired — please reconnect');
   } else {
-    console.log('  Schwab: Not connected');
+    // No certs — fall back to HTTP locally
+    app.listen(PORT, async () => {
+      console.log(`\n  Options Trading Dashboard (LOCAL - HTTP)`);
+      console.log(`  Dashboard:  http://localhost:${PORT}\n`);
+    });
   }
-});
+}
