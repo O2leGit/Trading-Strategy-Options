@@ -298,6 +298,8 @@ body {
 .badge-yellow { background: #78350f; color: var(--yellow); }
 .badge-blue { background: #1e3a5f; color: var(--blue); }
 .badge-purple { background: #3b1f6e; color: var(--purple); }
+.sop-tab { display:inline-block; font-size:0.68rem; padding:1px 8px; border-radius:3px; background:rgba(6,182,212,0.15); color:var(--cyan); cursor:pointer; font-weight:600; letter-spacing:0.3px; vertical-align:middle; margin-left:4px; transition:background 0.15s; }
+.sop-tab:hover { background:rgba(6,182,212,0.35); }
 
 /* Strategy cards */
 .strategy-item {
@@ -859,7 +861,7 @@ body {
     <div class="tab" data-tab="calculator">Greeks & P/L Calculator</div>
     <div class="tab" data-tab="risk">Risk Management</div>
     <div class="tab" data-tab="performance">Performance Dashboard</div>
-    <div class="tab" data-tab="education">Strategy Education</div>
+    <div class="tab" data-tab="education">Playbook & SOP</div>
     <div class="tab" data-tab="backtester">📊 Backtester</div>
     <div class="tab" data-tab="papertrade">📈 Paper Trading</div>
     <div class="tab" data-tab="connections">🔌 Connections</div>
@@ -1726,6 +1728,246 @@ body {
 
   <!-- =========== EDUCATION TAB =========== -->
   <div class="tab-content" id="tab-education">
+
+    <!-- ===== DAILY SOP ===== -->
+    <div class="card" style="border:1px solid var(--cyan); margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title" style="color:var(--cyan); font-size:1.05rem;">Daily Trading SOP</span>
+        <span class="badge badge-cyan">FOLLOW EVERY DAY</span>
+      </div>
+      <div style="font-size:0.85rem; line-height:1.8; padding:4px 12px 12px;">
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:700; color:var(--yellow); font-size:0.9rem; margin-bottom:4px; border-bottom:1px solid var(--border); padding-bottom:4px;">PRE-MARKET (8:30-9:15 AM ET)</div>
+          <div style="padding-left:12px; color:var(--text-secondary);">
+            <strong style="color:var(--text-primary);">1.</strong> Open the dashboard <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">2.</strong> Read the <strong>status bar</strong> at top of page -- Regime score + VIX/IV Rank <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <span style="padding-left:20px; font-size:0.78rem; color:var(--text-muted);">
+              55+ = full size, aggressive premium selling &nbsp;|&nbsp;
+              35-54 = half size, defined risk only &nbsp;|&nbsp;
+              &lt;35 = defensive, sit on hands
+            </span><br>
+            <strong style="color:var(--text-primary);">3.</strong> Read the <strong>Game Plan</strong> line -- one-sentence strategy for today <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">4.</strong> Check <strong style="color:var(--red);">ADJUST NOW</strong> card (red, only appears if positions need action) <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <span style="padding-left:20px; font-size:0.78rem; color:var(--text-muted);">
+              CLOSE = take profit or cut loss &nbsp;|&nbsp;
+              ROLL = expiration approaching &nbsp;|&nbsp;
+              ADJUST = needs hedging
+            </span><br>
+            <strong style="color:var(--text-primary);">5.</strong> Scan headlines for catalysts that could move your positions <span class="sop-tab" onclick="switchToTab('news')">News & Sentiment</span><br>
+            <strong style="color:var(--text-primary);">6.</strong> Check regime context -- is the market shifting? <span class="sop-tab" onclick="switchToTab('regime')">Regime Classifier</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:700; color:var(--green); font-size:0.9rem; margin-bottom:4px; border-bottom:1px solid var(--border); padding-bottom:4px;">MARKET OPEN (9:30-9:45 AM ET)</div>
+          <div style="padding-left:12px; color:var(--text-secondary);">
+            <strong style="color:var(--text-primary);">7.</strong> Wait 10-15 min after open for spreads to settle and chains to load<br>
+            <strong style="color:var(--text-primary);">8.</strong> Click <strong>"Rescan Trades"</strong> button to refresh with live opening data <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">9.</strong> Look at the <strong style="color:var(--green);">#1 TRADE</strong> hero card -- this is your best trade right now <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <span style="padding-left:20px; font-size:0.78rem; color:var(--text-muted);">
+              Score: A = strong, B = good, C = marginal &nbsp;|&nbsp;
+              Horizon: DAY / SWING / MONTHLY
+            </span><br>
+            <strong style="color:var(--text-primary);">10.</strong> Scroll to <strong>More Trades</strong> table for alternatives <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">11.</strong> For 0DTE plays specifically, check the dedicated scanner <span class="sop-tab" onclick="switchToTab('zerodte')">0DTE SPX Scanner</span><br>
+            <strong style="color:var(--text-primary);">12.</strong> Check sector rotation -- are winners rotating? <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span> (Sector Heat Map, scroll down)
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:700; color:var(--cyan); font-size:0.9rem; margin-bottom:4px; border-bottom:1px solid var(--border); padding-bottom:4px;">EXECUTION CHECKLIST (before each trade)</div>
+          <div style="padding-left:12px; color:var(--text-secondary);">
+            <strong style="color:var(--text-primary);">13.</strong> Verify the trade details against your checklist:<br>
+            <div style="padding-left:20px; font-size:0.82rem;">
+              <span style="color:var(--cyan);">[ ]</span> Credit vs max risk ratio (aim 30%+ on spreads) -- shown in #1 TRADE card <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+              <span style="color:var(--cyan);">[ ]</span> DTE matches your plan (DAY / SWING / MONTHLY)<br>
+              <span style="color:var(--cyan);">[ ]</span> No existing position in that ticker -- check <span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span><br>
+              <span style="color:var(--cyan);">[ ]</span> Sector not overloaded (dashboard caps at 2 per sector)<br>
+              <span style="color:var(--cyan);">[ ]</span> Bid-ask spread reasonable -- verify in Schwab order entry<br>
+              <span style="color:var(--cyan);">[ ]</span> Greeks look right -- spot-check delta/theta <span class="sop-tab" onclick="switchToTab('calculator')">Greeks & P/L Calculator</span><br>
+              <span style="color:var(--cyan);">[ ]</span> Risk within budget -- confirm position size <span class="sop-tab" onclick="switchToTab('risk')">Risk Management</span>
+            </div>
+            <strong style="color:var(--text-primary);">14.</strong> Open Schwab and place the order at the strikes shown<br>
+            <strong style="color:var(--text-primary);">15.</strong> Log it in Position Tracker (or bulk import from Schwab CSV) <span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:700; color:var(--purple); font-size:0.9rem; margin-bottom:4px; border-bottom:1px solid var(--border); padding-bottom:4px;">DURING THE DAY</div>
+          <div style="padding-left:12px; color:var(--text-secondary);">
+            <strong style="color:var(--text-primary);">16.</strong> Dashboard auto-refreshes: market data every 60s, options scan every 3 min<br>
+            <strong style="color:var(--text-primary);">17.</strong> Watch the <strong style="color:var(--red);">ADJUST NOW</strong> card -- if it appears, act immediately <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">18.</strong> Monitor your open positions and P&L <span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span><br>
+            <strong style="color:var(--text-primary);">19.</strong> Check for unusual options flow on your tickers <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span> (Unusual Flow, scroll down)<br>
+            <strong style="color:var(--text-primary);">20.</strong> Position management rules (baked into alerts):<br>
+            <div style="padding-left:20px; font-size:0.82rem;">
+              <span style="color:var(--green);">50% profit</span> = close the winner<br>
+              <span style="color:var(--yellow);">21 DTE</span> = close or roll (don't hold into expiration week)<br>
+              <span style="color:var(--red);">2x credit loss</span> = cut it, no hoping
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:700; color:var(--orange); font-size:0.9rem; margin-bottom:4px; border-bottom:1px solid var(--border); padding-bottom:4px;">END OF DAY (3:45-4:00 PM ET)</div>
+          <div style="padding-left:12px; color:var(--text-secondary);">
+            <strong style="color:var(--text-primary);">21.</strong> Close any <strong>DAY</strong> horizon trades still open -- check via <span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span><br>
+            <strong style="color:var(--text-primary);">22.</strong> Click <strong>Rescan</strong> for EOD theta scalp opportunities <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">23.</strong> Check the EOD-specific scanner for last-hour plays <span class="sop-tab" onclick="switchToTab('eod')">EOD Theta Scalper</span><br>
+            <strong style="color:var(--text-primary);">24.</strong> Update fills/closes in your position log <span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:4px;">
+          <div style="font-weight:700; color:var(--text-primary); font-size:0.9rem; margin-bottom:4px; border-bottom:1px solid var(--border); padding-bottom:4px;">WEEKLY REVIEW (Friday)</div>
+          <div style="padding-left:12px; color:var(--text-secondary);">
+            <strong style="color:var(--text-primary);">25.</strong> Review win rate, total P&L, best/worst trades <span class="sop-tab" onclick="switchToTab('performance')">Performance Dashboard</span><br>
+            <strong style="color:var(--text-primary);">26.</strong> Close anything expiring next week (21 DTE rule) <span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span><br>
+            <strong style="color:var(--text-primary);">27.</strong> Rescan for <strong>MONTHLY</strong> setups to open for the following week <span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span><br>
+            <strong style="color:var(--text-primary);">28.</strong> Review strategy performance by type <span class="sop-tab" onclick="switchToTab('strategies')">Strategy Templates</span><br>
+            <strong style="color:var(--text-primary);">29.</strong> Check earnings calendar for next week's landmines <span class="sop-tab" onclick="switchToTab('earnings')">Earnings Crusher</span><br>
+            <strong style="color:var(--text-primary);">30.</strong> Verify all data connections are healthy <span class="sop-tab" onclick="switchToTab('connections')">Connections</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ===== TAB MAP: What lives where ===== -->
+    <div class="card" style="border:1px solid var(--border); margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title">Tab Map -- What Lives Where</span>
+        <span class="badge">CLICK TO NAVIGATE</span>
+      </div>
+      <div style="font-size:0.85rem; line-height:1.6; padding:4px 12px 12px;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+          <thead><tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; border-bottom:1px solid var(--border);">
+            <th style="padding:6px 8px; text-align:left;">What you need</th>
+            <th style="padding:6px 8px; text-align:left;">Go to this tab</th>
+            <th style="padding:6px 8px; text-align:left;">What you'll find</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Best trades today</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">#1 TRADE hero card + More Trades table, auto-ranked by score</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Position adjustments</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Red ADJUST NOW card (auto-appears when positions need CLOSE/ROLL/ADJUST)</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Market regime & conditions</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('overview')">Market Overview</span> + <span class="sop-tab" onclick="switchToTab('regime')">Regime Classifier</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Status bar (quick), Regime tab (deep dive with VIX/VVIX/VRP/technicals)</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">News & catalysts</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('news')">News & Sentiment</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Live Finnhub news feed with sentiment scoring</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">0DTE plays</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('zerodte')">0DTE SPX Scanner</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Same-day expiration credit spreads + iron condors on SPX/SPY</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Theta/income trades</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('theta')">Theta Decay Calc</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Income projections, theta curve visualization, best theta plays</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Strike selection help</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('probability')">Strike Probability</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Probability of profit matrix by strike and DTE</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Pre-market gaps</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('premarket')">Pre-Market Edge</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Overnight gap analysis, gap fade setups</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">IV skew plays</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('skew')">Skew Exploiter</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Put/call skew analysis, rich side identification</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Weekly calendar spreads</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('weekly')">Weekly Calendar</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Calendar spread opportunities using weekly expirations</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Earnings plays</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('earnings')">Earnings Crusher</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Upcoming earnings calendar, IV crush setups</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">EOD scalps</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('eod')">EOD Theta Scalper</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Last-hour theta decay plays</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Manage positions</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('positions')">Position Tracker</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Open/closed positions, P&L, bulk import, portfolio advisor</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Greeks & P/L calc</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('calculator')">Greeks & P/L Calculator</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Black-Scholes calculator, P&L chart, what-if scenarios</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Risk/position sizing</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('risk')">Risk Management</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Account risk limits, position sizing calculator, portfolio Greeks</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:8px; font-weight:600;">Track performance</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('performance')">Performance Dashboard</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Win rate, P&L history, strategy breakdown</td>
+            </tr>
+            <tr>
+              <td style="padding:8px; font-weight:600;">Data feed status</td>
+              <td style="padding:8px;"><span class="sop-tab" onclick="switchToTab('connections')">Connections</span></td>
+              <td style="padding:8px; color:var(--text-secondary);">Test all 11 data feeds, API key config, WebSocket status</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== QUICK REFERENCE ===== -->
+    <div class="card" style="border:1px solid var(--border); margin-bottom:16px;">
+      <div class="card-header">
+        <span class="card-title">Quick Reference</span>
+      </div>
+      <div style="font-size:0.85rem; line-height:1.8; padding:4px 12px 12px; color:var(--text-secondary);">
+        <strong style="color:var(--text-primary);">Score grades:</strong>
+        A+ (80+) = high conviction &nbsp;|&nbsp;
+        A (70-79) = strong &nbsp;|&nbsp;
+        B (60-69) = good &nbsp;|&nbsp;
+        C (40-59) = marginal<br>
+        <strong style="color:var(--text-primary);">Regime sizing:</strong>
+        55+ = 2% risk/trade (full) &nbsp;|&nbsp;
+        35-54 = 1% risk/trade (half) &nbsp;|&nbsp;
+        &lt;35 = 0.5% risk/trade (defensive)<br>
+        <strong style="color:var(--text-primary);">Auto-refresh rates:</strong>
+        Market data = 60s &nbsp;|&nbsp;
+        Options chains = 3 min &nbsp;|&nbsp;
+        WebSocket = real-time (SPY/QQQ/DIA)<br>
+        <strong style="color:var(--text-primary);">Profit targets:</strong>
+        Credit spreads = 50% of max profit &nbsp;|&nbsp;
+        Day trades = 50-100% of premium &nbsp;|&nbsp;
+        Monthly = 50% or 21 DTE whichever first<br>
+        <strong style="color:var(--text-primary);">Loss limits:</strong>
+        Credit trades = 2x credit received &nbsp;|&nbsp;
+        Debit trades = 50% of premium paid &nbsp;|&nbsp;
+        Account = max 5% daily drawdown
+      </div>
+    </div>
+
     <div class="grid-2">
       <div class="card">
         <div class="card-header">
