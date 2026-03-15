@@ -2721,6 +2721,30 @@ body {
       </div>
     </div>
 
+    <!-- Portfolio Greeks Aggregation -->
+    <div class="market-bar" id="ptGreeksBar" style="margin-bottom:4px;">
+      <div class="market-card" style="border-top:2px solid var(--purple)">
+        <div class="label">Net Delta</div>
+        <div class="value" id="ptNetDelta">0</div>
+      </div>
+      <div class="market-card" style="border-top:2px solid var(--orange)">
+        <div class="label">Net Gamma</div>
+        <div class="value" id="ptNetGamma">0</div>
+      </div>
+      <div class="market-card" style="border-top:2px solid var(--cyan)">
+        <div class="label">Net Theta</div>
+        <div class="value" id="ptNetTheta">$0/day</div>
+      </div>
+      <div class="market-card" style="border-top:2px solid var(--yellow)">
+        <div class="label">Net Vega</div>
+        <div class="value" id="ptNetVega">0</div>
+      </div>
+      <div class="market-card">
+        <div class="label">Risk Level</div>
+        <div class="value" id="ptRiskLevel" style="font-size:0.9rem;">--</div>
+      </div>
+    </div>
+
     <!-- Strategy Allocation -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-header">
@@ -3135,6 +3159,15 @@ const MARKET = {
   regime: 'unknown', skewPercentile: 50,
   overnightGap: 0,
   ivRank: 50,
+  ivPercentile: 50,
+  vixHistory: [],           // rolling 252-day VIX history for true IV rank
+  termStructure: 'normal',  // 'contango' | 'backwardation' | 'normal'
+  trendStrength: 0,         // -100 to +100 (bearish to bullish)
+  correlationRegime: 'normal', // 'high' | 'normal' | 'low'
+  regimeScore: 50,          // 0-100 composite regime score (0=crisis, 100=euphoria)
+  regimeAdvice: '',         // human-readable regime trading advice
+  technicals: {},           // { rsi, macd, macdSignal, macdHist, bbUpper, bbMiddle, bbLower }
+  sentiment: { score: 0, label: 'NEUTRAL', articles: [] }, // Alpha Vantage sentiment
   lastUpdate: null,
   sources: {},
   expectedMove1d: function() { return this.spx * (this.vix/100) * Math.sqrt(1/365); },
@@ -3442,13 +3475,58 @@ function updateMarketCards(data) {
     updateCard('vix', data.vix.price, data.vix.change, data.vix.changePct);
     MARKET.vix = data.vix.price;
     MARKET.vixChange = data.vix.changePct;
-    // Derive regime from VIX
+    // Track VIX history for true IV rank (rolling 252-day window)
+    MARKET.vixHistory.push(MARKET.vix);
+    if (MARKET.vixHistory.length > 252) MARKET.vixHistory = MARKET.vixHistory.slice(-252);
+
+    // True IV Rank: where current VIX sits vs 52-week range
+    if (MARKET.vixHistory.length >= 5) {
+      const vixHigh = Math.max(...MARKET.vixHistory);
+      const vixLow = Math.min(...MARKET.vixHistory);
+      MARKET.ivRank = vixHigh > vixLow
+        ? Math.min(100, Math.max(0, Math.round((MARKET.vix - vixLow) / (vixHigh - vixLow) * 100)))
+        : 50;
+      // IV Percentile: % of days VIX was below current level
+      const below = MARKET.vixHistory.filter(v => v < MARKET.vix).length;
+      MARKET.ivPercentile = Math.round(below / MARKET.vixHistory.length * 100);
+    } else {
+      // Fallback estimate until we build history
+      MARKET.ivRank = Math.min(100, Math.max(0, Math.round((MARKET.vix - 12) / (40 - 12) * 100)));
+      MARKET.ivPercentile = MARKET.ivRank;
+    }
+
+    // Derive base regime from VIX
     if (MARKET.vix < 15) MARKET.regime = 'low';
     else if (MARKET.vix < 20) MARKET.regime = 'normal';
     else if (MARKET.vix < 30) MARKET.regime = 'elevated';
     else MARKET.regime = 'crisis';
-    // Estimate IV rank (VIX relative to 12-month range, simplified)
-    MARKET.ivRank = Math.min(100, Math.max(0, Math.round((MARKET.vix - 12) / (40 - 12) * 100)));
+
+    // Trend strength: multi-factor (-100 bearish to +100 bullish)
+    const spxTrend = Math.max(-100, Math.min(100, MARKET.spxChange * 20));
+    const vixTrend = Math.max(-100, Math.min(100, -MARKET.vixChange * 10));
+    MARKET.trendStrength = Math.round(spxTrend * 0.6 + vixTrend * 0.4);
+
+    // Composite regime score (0=crisis, 100=euphoria)
+    // Factors: VIX level (40%), IV rank (20%), trend (20%), oil stress (10%), rates stress (10%)
+    const vixScore = Math.max(0, Math.min(100, 100 - (MARKET.vix - 10) * 2.5));
+    const ivRankScore = 100 - MARKET.ivRank;
+    const trendScore = (MARKET.trendStrength + 100) / 2;
+    const oilScore = MARKET.oil > 0 ? Math.max(0, Math.min(100, 100 - (MARKET.oil - 60) * 1.5)) : 50;
+    const rateScore = MARKET.treasury10y > 0 ? Math.max(0, Math.min(100, 100 - (MARKET.treasury10y - 2) * 15)) : 50;
+    MARKET.regimeScore = Math.round(vixScore * 0.40 + ivRankScore * 0.20 + trendScore * 0.20 + oilScore * 0.10 + rateScore * 0.10);
+
+    // Regime trading advice based on composite score
+    if (MARKET.regimeScore >= 75) {
+      MARKET.regimeAdvice = 'AGGRESSIVE SELLING: Full size iron condors, strangles, jade lizards. IV is cheap -- sell premium aggressively.';
+    } else if (MARKET.regimeScore >= 55) {
+      MARKET.regimeAdvice = 'STANDARD SELLING: Credit spreads, iron condors at standard size. Good conditions for premium sellers.';
+    } else if (MARKET.regimeScore >= 35) {
+      MARKET.regimeAdvice = 'CAUTIOUS: Reduce position size 50%. Defined risk only. Widen wings. Consider protective puts.';
+    } else if (MARKET.regimeScore >= 15) {
+      MARKET.regimeAdvice = 'DEFENSIVE: Minimal new positions. Hedge existing. Buy puts for protection. Cash is a position.';
+    } else {
+      MARKET.regimeAdvice = 'CRISIS: No new short premium. Close vulnerable positions. Buy VIX calls or deep OTM puts for portfolio insurance.';
+    }
   }
   if (data.oil) {
     updateCard('oil', data.oil.price, data.oil.change, data.oil.changePct, '$');
@@ -3620,6 +3698,9 @@ function updateRegimeIndicators() {
     row('Oil Impact', oilLabel, oilColor) +
     row('10Y Yield', tsyLabel, tsyColor) +
     row('IV Rank', MARKET.ivRank + '/100', MARKET.ivRank > 60 ? 'var(--orange)' : 'var(--green)') +
+    row('IV Percentile', MARKET.ivPercentile + '%', MARKET.ivPercentile > 70 ? 'var(--orange)' : MARKET.ivPercentile < 30 ? 'var(--cyan)' : 'var(--text-primary)') +
+    row('Trend Strength', (MARKET.trendStrength >= 0 ? '+' : '') + MARKET.trendStrength, MARKET.trendStrength > 20 ? 'var(--green)' : MARKET.trendStrength < -20 ? 'var(--red)' : 'var(--yellow)') +
+    row('Regime Score', MARKET.regimeScore + '/100', MARKET.regimeScore >= 55 ? 'var(--green)' : MARKET.regimeScore >= 35 ? 'var(--yellow)' : 'var(--red)') +
     row('Regime', regime, regimeColor);
 }
 
@@ -3656,36 +3737,65 @@ function updateRegimeClassifier() {
     '<div style="font-size:1.4rem;font-weight:700;color:' + color + ';">' + value + '</div>' +
     '<div style="font-size:0.78rem;color:var(--text-secondary);">' + desc + '</div></div>';
 
+  // Regime Score classification
+  let scoreLabel, scoreColor;
+  if (MARKET.regimeScore >= 75) { scoreLabel = 'SELL AGGRESSIVELY'; scoreColor = 'var(--green)'; }
+  else if (MARKET.regimeScore >= 55) { scoreLabel = 'SELL STANDARD'; scoreColor = 'var(--blue)'; }
+  else if (MARKET.regimeScore >= 35) { scoreLabel = 'CAUTIOUS'; scoreColor = 'var(--yellow)'; }
+  else if (MARKET.regimeScore >= 15) { scoreLabel = 'DEFENSIVE'; scoreColor = 'var(--orange)'; }
+  else { scoreLabel = 'CRISIS'; scoreColor = 'var(--red)'; }
+
   el.innerHTML =
     card('VIX Regime', vixRegime, vixRegimeColor, fmt(vix) + ' (' + vixRange + ')') +
-    card('Trend', trend, trendColor, trendDesc) +
-    card('IV vs RV', ivVsRv.label, ivVsRv.color, ivVsRv.desc) +
+    card('Regime Score', MARKET.regimeScore + '/100', scoreColor, scoreLabel) +
     card('IV Rank', MARKET.ivRank + '%', MARKET.ivRank > 60 ? 'var(--orange)' : 'var(--green)', MARKET.ivRank > 60 ? 'Options expensive' : 'Options fair/cheap') +
+    card('IV Percentile', MARKET.ivPercentile + '%', MARKET.ivPercentile > 70 ? 'var(--orange)' : 'var(--green)', MARKET.ivPercentile > 70 ? 'VIX above ' + MARKET.ivPercentile + '% of days' : 'VIX below avg') +
+    card('Trend', trend, trendColor, trendDesc + ' (' + (MARKET.trendStrength >= 0 ? '+' : '') + MARKET.trendStrength + ')') +
+    card('IV vs RV', ivVsRv.label, ivVsRv.color, ivVsRv.desc) +
     card('Oil', '$' + fmt(MARKET.oil), MARKET.oil > 90 ? 'var(--red)' : 'var(--green)', MARKET.oil > 90 ? 'Inflation pressure' : 'Manageable');
 
-  // Verdict
+  // Verdict based on composite regime score (multi-factor, not just VIX)
   let verdictLevel, verdictColor, verdictBadge;
-  if (vix < 18) { verdictLevel = 'GREEN'; verdictColor = 'var(--green)'; verdictBadge = 'badge-green'; }
-  else if (vix < 30) { verdictLevel = 'YELLOW'; verdictColor = 'var(--yellow)'; verdictBadge = 'badge-yellow'; }
+  if (MARKET.regimeScore >= 55) { verdictLevel = 'GREEN'; verdictColor = 'var(--green)'; verdictBadge = 'badge-green'; }
+  else if (MARKET.regimeScore >= 35) { verdictLevel = 'YELLOW'; verdictColor = 'var(--yellow)'; verdictBadge = 'badge-yellow'; }
   else { verdictLevel = 'RED'; verdictColor = 'var(--red)'; verdictBadge = 'badge-red'; }
 
-  const strategies = {
-    GREEN: 'Iron condors, strangles, jade lizards. Standard 1 SD wings. Full size.',
-    YELLOW: 'Credit spreads only (defined risk). 1.5 SD wings. 50-75% size. Bias toward put credit spreads.',
-    RED: 'Cash is king. No new premium sales. Hedge existing positions. Consider buying puts for protection.'
+  const verdictLabels = {
+    GREEN: 'SELL AGGRESSIVELY',
+    YELLOW: 'SELL CONSERVATIVE',
+    RED: 'DEFENSIVE ONLY'
   };
 
   verdict.className = 'badge ' + verdictBadge;
   verdict.style.fontSize = '0.8rem';
   verdict.style.padding = '6px 14px';
-  verdict.textContent = verdictLevel + ' - ' + (verdictLevel === 'GREEN' ? 'SELL AGGRESSIVELY' : verdictLevel === 'YELLOW' ? 'SELL CONSERVATIVE' : 'DEFENSIVE ONLY');
+  verdict.textContent = verdictLevel + ' - ' + verdictLabels[verdictLevel];
 
   document.getElementById('regimeVerdictBox').style.borderColor = verdictColor;
   verdictTitle.style.color = verdictColor;
   verdictTitle.textContent = "TODAY'S REGIME VERDICT: " + verdict.textContent;
-  verdictText.textContent = 'VIX at ' + fmt(vix) + ' with SPX ' + (MARKET.spxChange >= 0 ? 'up' : 'down') + ' ' + Math.abs(MARKET.spxChange).toFixed(2) + '%. ' +
-    'IV Rank at ' + MARKET.ivRank + '/100. Oil at $' + fmt(MARKET.oil) + '. ' +
-    'Strategy: ' + strategies[verdictLevel];
+
+  // Build technicals summary if available
+  let techSummary = '';
+  if (MARKET.technicals.rsi) {
+    const rsi = MARKET.technicals.rsi;
+    techSummary += ' RSI: ' + rsi.toFixed(0) + (rsi > 70 ? ' (overbought)' : rsi < 30 ? ' (oversold)' : '') + '.';
+  }
+  if (MARKET.technicals.macdHist !== undefined) {
+    techSummary += ' MACD: ' + (MARKET.technicals.macdHist > 0 ? 'bullish' : 'bearish') + '.';
+  }
+
+  // Build sentiment summary
+  let sentSummary = '';
+  if (MARKET.sentiment.label !== 'NEUTRAL') {
+    sentSummary = ' Sentiment: ' + MARKET.sentiment.label + ' (' + MARKET.sentiment.score.toFixed(2) + ').';
+  }
+
+  verdictText.textContent = 'Regime Score: ' + MARKET.regimeScore + '/100. ' +
+    'VIX at ' + fmt(vix) + ' (IV Rank: ' + MARKET.ivRank + ', Percentile: ' + MARKET.ivPercentile + '%). ' +
+    'SPX ' + (MARKET.spxChange >= 0 ? 'up' : 'down') + ' ' + Math.abs(MARKET.spxChange).toFixed(2) + '%. ' +
+    'Oil at $' + fmt(MARKET.oil) + '.' + techSummary + sentSummary +
+    ' Strategy: ' + MARKET.regimeAdvice;
 }
 
 // ===== UPDATE 0DTE & RISK TAB REFERENCES =====
@@ -3739,6 +3849,33 @@ async function fetchSecondaryData() {
     const news = await fetchMarketNews();
     renderNews(news);
   } catch (e) { console.warn('News fetch error:', e); }
+
+  // Alpha Vantage Technicals (RSI, MACD, Bollinger Bands for SPY)
+  try {
+    const tech = await fetchAlphaTechnicals('SPY');
+    if (tech) {
+      MARKET.technicals = tech;
+      console.log('Technicals loaded:', tech);
+    }
+  } catch (e) { console.warn('Technicals fetch error:', e); }
+
+  // Alpha Vantage News Sentiment
+  try {
+    const sentimentData = await fetchAlphaNewsSentiment(['SPY', 'QQQ', 'AAPL', 'NVDA']);
+    if (sentimentData && sentimentData.length > 0) {
+      const avgScore = sentimentData.reduce((s, a) => s + (a.sentimentScore || 0), 0) / sentimentData.length;
+      let label = 'NEUTRAL';
+      if (avgScore >= 0.15) label = 'BULLISH';
+      else if (avgScore >= 0.05) label = 'SOMEWHAT BULLISH';
+      else if (avgScore <= -0.15) label = 'BEARISH';
+      else if (avgScore <= -0.05) label = 'SOMEWHAT BEARISH';
+      MARKET.sentiment = { score: avgScore, label, articles: sentimentData };
+      console.log('Sentiment loaded:', label, avgScore.toFixed(3));
+    }
+  } catch (e) { console.warn('Sentiment fetch error:', e); }
+
+  // Update displays with new data
+  updateAllDisplays();
 
   secondaryFetched = true;
 }
@@ -4392,6 +4529,144 @@ function switchToTab(tabId) {
   window.scrollTo(0, 0);
 }
 
+// ===== COMPOSITE SIGNAL SCORING ENGINE =====
+// Scores any trade signal from 0-100 based on multi-factor analysis
+// Factors: IV environment, regime, technicals, sentiment, Greeks quality, skew
+
+function scoreSignal(opts) {
+  // opts: { type: 'credit'|'debit', delta, iv, dte, credit, maxRisk, sym }
+  const scores = {};
+  let totalWeight = 0;
+
+  // 1. IV Environment Score (25% weight) -- selling premium when IV is high = edge
+  const ivWeight = 25;
+  if (opts.type === 'credit') {
+    // For premium sellers: higher IV rank = better
+    scores.iv = Math.min(100, MARKET.ivRank * 1.2);
+    // Bonus if IV percentile confirms
+    if (MARKET.ivPercentile > 60) scores.iv = Math.min(100, scores.iv + 10);
+  } else {
+    // For premium buyers: lower IV rank = better
+    scores.iv = Math.min(100, (100 - MARKET.ivRank) * 1.2);
+  }
+  totalWeight += ivWeight;
+
+  // 2. Regime Score (20% weight) -- trade with the regime, not against it
+  const regimeWeight = 20;
+  if (opts.type === 'credit') {
+    scores.regime = MARKET.regimeScore; // higher regime score = better for sellers
+  } else {
+    scores.regime = 100 - MARKET.regimeScore; // lower regime score = better for buyers (hedging)
+  }
+  totalWeight += regimeWeight;
+
+  // 3. Technical Alignment (20% weight) -- RSI, MACD, Bollinger context
+  const techWeight = 20;
+  scores.tech = 50; // neutral default
+  if (MARKET.technicals.rsi) {
+    const rsi = MARKET.technicals.rsi;
+    if (opts.type === 'credit') {
+      // Selling premium: RSI 40-60 = ideal (range-bound), extremes = risk
+      if (rsi >= 35 && rsi <= 65) scores.tech = 70;
+      else if (rsi > 70) scores.tech = 30; // overbought, risky for call sellers
+      else if (rsi < 30) scores.tech = 30; // oversold, risky for put sellers
+    } else {
+      // Buying: momentum alignment matters
+      scores.tech = rsi > 50 ? 60 : 40;
+    }
+    // MACD confirmation
+    if (MARKET.technicals.macdHist !== undefined) {
+      const macdBullish = MARKET.technicals.macdHist > 0;
+      if (opts.type === 'credit') {
+        // Flat MACD = good for sellers (range-bound)
+        if (Math.abs(MARKET.technicals.macdHist) < 1) scores.tech += 10;
+      } else {
+        if (macdBullish) scores.tech += 10;
+      }
+    }
+    // Bollinger Band context
+    if (MARKET.technicals.bbUpper && MARKET.technicals.bbLower && MARKET.spx > 0) {
+      const bbWidth = (MARKET.technicals.bbUpper - MARKET.technicals.bbLower) / MARKET.technicals.bbMiddle;
+      if (opts.type === 'credit' && bbWidth < 0.06) scores.tech += 10; // narrow bands = low vol = good for sellers
+      if (opts.type === 'credit' && bbWidth > 0.10) scores.tech -= 10; // wide bands = high vol = risky
+    }
+    scores.tech = Math.max(0, Math.min(100, scores.tech));
+  }
+  totalWeight += techWeight;
+
+  // 4. Sentiment Alignment (15% weight)
+  const sentWeight = 15;
+  scores.sentiment = 50; // neutral default
+  if (MARKET.sentiment.score !== 0) {
+    const sentScore = MARKET.sentiment.score;
+    if (opts.type === 'credit') {
+      // Neutral sentiment = ideal for premium selling (no catalysts)
+      if (Math.abs(sentScore) < 0.05) scores.sentiment = 75;
+      else if (Math.abs(sentScore) < 0.15) scores.sentiment = 55;
+      else scores.sentiment = 30; // strong sentiment = potential catalyst = risky
+    } else {
+      // For buyers, strong sentiment in trade direction = good
+      scores.sentiment = 50 + sentScore * 100;
+    }
+    scores.sentiment = Math.max(0, Math.min(100, scores.sentiment));
+  }
+  totalWeight += sentWeight;
+
+  // 5. Greeks Quality (10% weight)
+  const greeksWeight = 10;
+  scores.greeks = 50;
+  if (opts.delta !== undefined) {
+    const absDelta = Math.abs(opts.delta);
+    if (opts.type === 'credit') {
+      // Sweet spot: 0.10-0.20 delta for credit spreads
+      if (absDelta >= 0.08 && absDelta <= 0.20) scores.greeks = 80;
+      else if (absDelta <= 0.30) scores.greeks = 60;
+      else scores.greeks = 30; // too close to ATM
+    }
+  }
+  if (opts.credit && opts.maxRisk) {
+    const returnOnRisk = opts.credit / opts.maxRisk;
+    if (returnOnRisk >= 0.30) scores.greeks = Math.min(100, scores.greeks + 15);
+    else if (returnOnRisk >= 0.20) scores.greeks += 5;
+  }
+  scores.greeks = Math.max(0, Math.min(100, scores.greeks));
+  totalWeight += greeksWeight;
+
+  // 6. Risk/Reward (10% weight)
+  const rrWeight = 10;
+  scores.riskReward = 50;
+  if (opts.credit && opts.maxRisk) {
+    const rr = opts.credit / opts.maxRisk;
+    scores.riskReward = Math.min(100, rr * 250); // 40% return on risk = 100
+  }
+  totalWeight += rrWeight;
+
+  // Weighted composite
+  const composite = Math.round(
+    (scores.iv * ivWeight + scores.regime * regimeWeight + scores.tech * techWeight +
+     scores.sentiment * sentWeight + scores.greeks * greeksWeight + scores.riskReward * rrWeight) / totalWeight
+  );
+
+  return {
+    composite,
+    scores,
+    grade: composite >= 75 ? 'A' : composite >= 60 ? 'B' : composite >= 45 ? 'C' : composite >= 30 ? 'D' : 'F',
+    color: composite >= 75 ? 'var(--green)' : composite >= 60 ? 'var(--blue)' : composite >= 45 ? 'var(--yellow)' : composite >= 30 ? 'var(--orange)' : 'var(--red)'
+  };
+}
+
+// Format signal score as HTML badge
+function signalScoreBadge(score) {
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;' +
+    'background:' + score.color + '22;color:' + score.color + ';">' +
+    'Score: ' + score.composite + ' (' + score.grade + ')</span>';
+}
+
+// Filter plays by minimum score threshold
+function filterByScore(plays, minScore) {
+  return plays.filter(p => !p.score || p.score.composite >= minScore);
+}
+
 function generateBestPlays(tabId) {
   const generators = {
     strategies: generateStrategyTemplatePlays,
@@ -4423,13 +4698,15 @@ function generateZeroDTEPlays() {
   if (spy && spy.contracts.length > 0) {
     const ic = findIronCondor(spy.contracts, 0, 1, 0.10, 0.10, 5);
     if (ic) {
+      const sig = scoreSignal({ type: 'credit', delta: ic.putSpread.short.delta, iv: ic.putSpread.short.iv,
+        dte: ic.dte, credit: parseFloat(ic.totalCredit), maxRisk: parseFloat(ic.maxRisk), sym: 'SPY' });
       document.getElementById('play-zerodte-day').innerHTML = playHTML(
-        'SPY 0DTE Iron Condor (' + ic.expiry + ')',
+        'SPY 0DTE Iron Condor (' + ic.expiry + ') ' + signalScoreBadge(sig),
         ['Sell ' + ic.putSpread.short.strike + ' Put / Buy ' + ic.putSpread.long.strike + ' Put',
          'Sell ' + ic.callSpread.short.strike + ' Call / Buy ' + ic.callSpread.long.strike + ' Call',
          'Credit: $' + ic.totalCredit + ' | Max Risk: $' + ic.maxRisk + ' | DTE: ' + ic.dte,
          'Put Δ: ' + ic.putSpread.short.delta.toFixed(2) + ' | Call Δ: ' + ic.callSpread.short.delta.toFixed(2)],
-        'VIX ' + MARKET.vix.toFixed(1) + ' | IV: ' + ((ic.putSpread.short.iv || 0) * 100).toFixed(0) + '% | LIVE chain data'
+        'VIX ' + MARKET.vix.toFixed(1) + ' | IV Rank: ' + MARKET.ivRank + ' | Regime: ' + MARKET.regimeScore + '/100 | LIVE'
       );
     } else { renderFallbackZeroDTE(); }
     // Also scan for best 0DTE across other liquid tickers
@@ -4468,33 +4745,43 @@ function renderFallbackZeroDTE() {
 }
 
 function generateThetaPlays() {
-  // Find highest theta/risk plays across scanned tickers
+  // Find highest theta/risk plays across scanned tickers, scored by composite signal quality
   const dayPlays = [], swingPlays = [], monthlyPlays = [];
 
   Object.entries(OPTIONS_CACHE).forEach(([sym, data]) => {
     if (!data.contracts.length) return;
-    // Day: 0-2 DTE credit spreads ranked by theta
+    // Day: 0-2 DTE credit spreads
     const dayPut = findCreditSpread(data.contracts, 'put', 0, 2, 0.15, sym === 'SPY' ? 5 : 3);
-    if (dayPut && dayPut.credit > 0.20) dayPlays.push({ sym, spread: dayPut, theta: Math.abs(dayPut.short.theta) });
+    if (dayPut && dayPut.credit > 0.20) {
+      const sig = scoreSignal({ type: 'credit', delta: dayPut.short.delta, iv: dayPut.short.iv, dte: dayPut.dte, credit: dayPut.credit, maxRisk: dayPut.maxRisk || 5, sym });
+      dayPlays.push({ sym, spread: dayPut, theta: Math.abs(dayPut.short.theta), score: sig });
+    }
     // Swing: 7-21 DTE
     const swIC = findIronCondor(data.contracts, 7, 21, 0.15, 0.15, sym === 'SPY' ? 5 : 3);
-    if (swIC) swingPlays.push({ sym, ic: swIC, theta: Math.abs(swIC.putSpread.short.theta) + Math.abs(swIC.callSpread.short.theta) });
+    if (swIC) {
+      const sig = scoreSignal({ type: 'credit', delta: swIC.putSpread.short.delta, iv: swIC.putSpread.short.iv, dte: swIC.dte, credit: parseFloat(swIC.totalCredit), maxRisk: parseFloat(swIC.maxRisk), sym });
+      swingPlays.push({ sym, ic: swIC, theta: Math.abs(swIC.putSpread.short.theta) + Math.abs(swIC.callSpread.short.theta), score: sig });
+    }
     // Monthly: 30-60 DTE
     const moIC = findIronCondor(data.contracts, 30, 60, 0.12, 0.12, sym === 'SPY' ? 10 : 5);
-    if (moIC) monthlyPlays.push({ sym, ic: moIC, theta: Math.abs(moIC.putSpread.short.theta) + Math.abs(moIC.callSpread.short.theta) });
+    if (moIC) {
+      const sig = scoreSignal({ type: 'credit', delta: moIC.putSpread.short.delta, iv: moIC.putSpread.short.iv, dte: moIC.dte, credit: parseFloat(moIC.totalCredit), maxRisk: parseFloat(moIC.maxRisk), sym });
+      monthlyPlays.push({ sym, ic: moIC, theta: Math.abs(moIC.putSpread.short.theta) + Math.abs(moIC.callSpread.short.theta), score: sig });
+    }
   });
 
-  dayPlays.sort((a,b) => b.theta - a.theta);
-  swingPlays.sort((a,b) => b.theta - a.theta);
-  monthlyPlays.sort((a,b) => b.theta - a.theta);
+  // Sort by composite score (best signals first), then theta as tiebreaker
+  dayPlays.sort((a,b) => b.score.composite - a.score.composite || b.theta - a.theta);
+  swingPlays.sort((a,b) => b.score.composite - a.score.composite || b.theta - a.theta);
+  monthlyPlays.sort((a,b) => b.score.composite - a.score.composite || b.theta - a.theta);
 
   if (dayPlays.length > 0) {
     const top = dayPlays.slice(0, 3);
     document.getElementById('play-theta-day').innerHTML = top.map(p => playHTML(
-      p.sym + ' Put Credit Spread (DTE: ' + p.spread.dte + ')',
+      p.sym + ' Put Credit Spread (DTE: ' + p.spread.dte + ') ' + signalScoreBadge(p.score),
       ['Sell ' + p.spread.short.strike + ' P / Buy ' + p.spread.long.strike + ' P',
        'Credit: $' + p.spread.credit.toFixed(2) + ' | Θ: $' + p.spread.short.theta.toFixed(3) + '/day',
-       'Δ: ' + p.spread.short.delta.toFixed(2) + ' | IV: ' + ((p.spread.short.iv||0)*100).toFixed(0) + '%'],
+       'Δ: ' + p.spread.short.delta.toFixed(2) + ' | IV: ' + ((p.spread.short.iv||0)*100).toFixed(0) + '% | IV Rank: ' + MARKET.ivRank],
       ''
     )).join('<hr style="border-color:var(--border);margin:8px 0;">');
   } else { renderFallbackTheta('day'); }
@@ -4502,7 +4789,7 @@ function generateThetaPlays() {
   if (swingPlays.length > 0) {
     const top = swingPlays.slice(0, 3);
     document.getElementById('play-theta-swing').innerHTML = top.map(p => playHTML(
-      p.sym + ' Iron Condor (DTE: ' + p.ic.dte + ')',
+      p.sym + ' Iron Condor (DTE: ' + p.ic.dte + ') ' + signalScoreBadge(p.score),
       ['P: ' + p.ic.putSpread.short.strike + '/' + p.ic.putSpread.long.strike + ' | C: ' + p.ic.callSpread.short.strike + '/' + p.ic.callSpread.long.strike,
        'Credit: $' + p.ic.totalCredit + ' | Risk: $' + p.ic.maxRisk],
       ''
@@ -4512,7 +4799,7 @@ function generateThetaPlays() {
   if (monthlyPlays.length > 0) {
     const top = monthlyPlays.slice(0, 3);
     document.getElementById('play-theta-monthly').innerHTML = top.map(p => playHTML(
-      p.sym + ' Iron Condor (DTE: ' + p.ic.dte + ')',
+      p.sym + ' Iron Condor (DTE: ' + p.ic.dte + ') ' + signalScoreBadge(p.score),
       ['P: ' + p.ic.putSpread.short.strike + '/' + p.ic.putSpread.long.strike + ' | C: ' + p.ic.callSpread.short.strike + '/' + p.ic.callSpread.long.strike,
        'Credit: $' + p.ic.totalCredit + ' | Risk: $' + p.ic.maxRisk],
       ''
@@ -4540,34 +4827,37 @@ function generateProbabilityPlays() {
     if (puts.length > 0) {
       const p = puts[0];
       const prob = Math.round((1 - Math.abs(p.delta)) * 100);
-      dayPlays.push({ sym, contract: p, prob, type: 'put' });
+      const sig = scoreSignal({ type: 'credit', delta: p.delta, iv: p.iv, dte: p.dte, credit: p.bid, sym });
+      dayPlays.push({ sym, contract: p, prob, type: 'put', score: sig });
     }
     // Swing: 7-21 DTE
     const swPuts = findBestPuts(data.contracts, 7, 21, 0.10);
     if (swPuts.length > 0) {
       const p = swPuts[0];
-      swingPlays.push({ sym, contract: p, prob: Math.round((1 - Math.abs(p.delta)) * 100) });
+      const sig = scoreSignal({ type: 'credit', delta: p.delta, iv: p.iv, dte: p.dte, credit: p.bid, sym });
+      swingPlays.push({ sym, contract: p, prob: Math.round((1 - Math.abs(p.delta)) * 100), score: sig });
     }
     // Monthly: 30-60 DTE
     const moPuts = findBestPuts(data.contracts, 30, 60, 0.08);
     if (moPuts.length > 0) {
       const p = moPuts[0];
-      monthlyPlays.push({ sym, contract: p, prob: Math.round((1 - Math.abs(p.delta)) * 100) });
+      const sig = scoreSignal({ type: 'credit', delta: p.delta, iv: p.iv, dte: p.dte, credit: p.bid, sym });
+      monthlyPlays.push({ sym, contract: p, prob: Math.round((1 - Math.abs(p.delta)) * 100), score: sig });
     }
   });
 
-  // Sort by highest probability (lowest delta)
-  dayPlays.sort((a,b) => b.prob - a.prob);
-  swingPlays.sort((a,b) => b.prob - a.prob);
-  monthlyPlays.sort((a,b) => b.prob - a.prob);
+  // Sort by composite score (best signals first), then probability as tiebreaker
+  dayPlays.sort((a,b) => b.score.composite - a.score.composite || b.prob - a.prob);
+  swingPlays.sort((a,b) => b.score.composite - a.score.composite || b.prob - a.prob);
+  monthlyPlays.sort((a,b) => b.score.composite - a.score.composite || b.prob - a.prob);
 
   function renderProbPlays(plays, elId, dte) {
     if (plays.length > 0) {
       document.getElementById(elId).innerHTML = plays.slice(0, 4).map(p => {
         const c = p.contract;
-        return playHTML(p.sym + ' $' + c.strike + ' Put (' + p.prob + '% Prob OTM)',
+        return playHTML(p.sym + ' $' + c.strike + ' Put (' + p.prob + '% Prob OTM) ' + signalScoreBadge(p.score),
           ['Bid: $' + c.bid.toFixed(2) + ' | Δ: ' + c.delta.toFixed(2) + ' | DTE: ' + c.dte,
-           'IV: ' + ((c.iv||0)*100).toFixed(0) + '% | OI: ' + c.openInterest.toLocaleString()],
+           'IV: ' + ((c.iv||0)*100).toFixed(0) + '% | IV Rank: ' + MARKET.ivRank + ' | OI: ' + c.openInterest.toLocaleString()],
           '');
       }).join('<hr style="border-color:var(--border);margin:8px 0;">');
     } else {
@@ -4654,16 +4944,19 @@ function generateSkewPlays() {
       const avgPutIV = puts30.reduce((s,c) => s + c.iv, 0) / puts30.length;
       const avgCallIV = calls30.reduce((s,c) => s + c.iv, 0) / calls30.length;
       const skewRatio = avgPutIV / avgCallIV;
-      if (skewRatio > 1.05) skewResults.push({ sym, skewRatio, avgPutIV, avgCallIV, puts: puts30, calls: calls30, price: data.underlyingPrice });
+      if (skewRatio > 1.05) {
+      const sig = scoreSignal({ type: 'credit', delta: 0.20, iv: avgPutIV, dte: 35, sym });
+      skewResults.push({ sym, skewRatio, avgPutIV, avgCallIV, puts: puts30, calls: calls30, price: data.underlyingPrice, score: sig });
+    }
     }
   });
-  skewResults.sort((a,b) => b.skewRatio - a.skewRatio);
+  skewResults.sort((a,b) => b.score.composite - a.score.composite || b.skewRatio - a.skewRatio);
 
   if (skewResults.length > 0) {
     // Day: sell rich puts on highest skew tickers
     document.getElementById('play-skew-day').innerHTML = skewResults.slice(0,3).map(s => {
       const bestPut = findCreditSpread(OPTIONS_CACHE[s.sym].contracts, 'put', 0, 7, 0.15, s.sym === 'SPY' ? 5 : 3);
-      return playHTML(s.sym + ' Put Skew: ' + (s.skewRatio * 100 - 100).toFixed(0) + '% rich ($' + s.price.toFixed(0) + ')',
+      return playHTML(s.sym + ' Put Skew: ' + (s.skewRatio * 100 - 100).toFixed(0) + '% rich ($' + s.price.toFixed(0) + ') ' + signalScoreBadge(s.score),
         [bestPut ? 'Sell ' + bestPut.short.strike + ' P / Buy ' + bestPut.long.strike + ' P — $' + bestPut.credit.toFixed(2) : 'Put IV: ' + (s.avgPutIV*100).toFixed(0) + '% vs Call IV: ' + (s.avgCallIV*100).toFixed(0) + '%',
          'Puts ' + (s.skewRatio * 100 - 100).toFixed(0) + '% richer than calls'], '');
     }).join('<hr style="border-color:var(--border);margin:8px 0;">');
@@ -4859,28 +5152,60 @@ function generateEODPlays() {
 }
 
 function generateStrategyTemplatePlays() {
-  const vixHigh = MARKET.vix > 25;
   const cachedCount = Object.keys(OPTIONS_CACHE).length;
   const scanStatus = cachedCount > 0 ? '(' + cachedCount + ' tickers scanned)' : '(scanning...)';
+  const rs = MARKET.regimeScore;
+
+  // Regime-aware strategy recommendations
+  let dayRec, dayDesc, dayTab;
+  if (rs >= 55 && MARKET.ivRank > 40) {
+    dayRec = 'Recommended: 0DTE Iron Condors';
+    dayDesc = 'Regime Score ' + rs + '/100 + IV Rank ' + MARKET.ivRank + ' = elevated premium. Sell ICs outside 1.2 SD.';
+    dayTab = 'zerodte';
+  } else if (rs >= 55) {
+    dayRec = 'Recommended: EOD Theta Scalps';
+    dayDesc = 'Regime Score ' + rs + '/100 favorable. IV Rank ' + MARKET.ivRank + ' is moderate -- use tight EOD scalps.';
+    dayTab = 'eod';
+  } else if (rs >= 35) {
+    dayRec = 'Caution: Reduced Size Credit Spreads';
+    dayDesc = 'Regime Score ' + rs + '/100 is cautious. IV Rank ' + MARKET.ivRank + '. Use defined risk only, 50% size.';
+    dayTab = 'probability';
+  } else {
+    dayRec = 'Defensive: Hedge or Stay Cash';
+    dayDesc = 'Regime Score ' + rs + '/100 is defensive. VIX ' + MARKET.vix.toFixed(1) + '. No new short premium. Protect capital.';
+    dayTab = 'probability';
+  }
+
+  // Technicals context
+  let techNote = '';
+  if (MARKET.technicals.rsi) {
+    techNote = ' | RSI: ' + MARKET.technicals.rsi.toFixed(0);
+    if (MARKET.technicals.rsi > 70) techNote += ' (overbought)';
+    else if (MARKET.technicals.rsi < 30) techNote += ' (oversold)';
+  }
+  if (MARKET.sentiment.label !== 'NEUTRAL') {
+    techNote += ' | Sentiment: ' + MARKET.sentiment.label;
+  }
 
   document.getElementById('play-strategies-day').innerHTML = playHTML(
-    vixHigh ? '⚡ Recommended: 0DTE Iron Condors' : '⚡ Recommended: EOD Theta Scalps',
-    [vixHigh ? 'VIX ' + MARKET.vix.toFixed(1) + ' = elevated premium. Sell ICs outside 1.2 SD.'
-             : 'VIX calm — use tight EOD scalps for consistent small gains.',
+    dayRec,
+    [dayDesc + techNote,
      scanStatus + ' — Click to see specific tickers & strikes:'],
-    '<a style="color:var(--blue);cursor:pointer;" onclick="switchToTab(\'' + (vixHigh ? 'zerodte' : 'eod') + '\')">' +
-    (vixHigh ? 'Open 0DTE Scanner →' : 'Open EOD Scalper →') + '</a>'
+    '<a style="color:var(--blue);cursor:pointer;" onclick="switchToTab(\'' + dayTab + '\')">' +
+    'Open ' + dayTab.charAt(0).toUpperCase() + dayTab.slice(1) + ' →</a>'
   );
   document.getElementById('play-strategies-swing').innerHTML = playHTML(
-    '⚡ Recommended: Weekly Iron Condors',
-    ['Sell weekly ICs on highest-premium tickers.',
+    rs >= 45 ? 'Recommended: Weekly Iron Condors' : 'Caution: Weekly Spreads (Reduced Size)',
+    [rs >= 45 ? 'Regime supports weekly selling. IV Rank: ' + MARKET.ivRank + '.'
+              : 'Regime cautious (' + rs + '/100). Widen wings, reduce size.',
      scanStatus + ' — Click to see ranked plays:'],
     '<a style="color:var(--blue);cursor:pointer;" onclick="switchToTab(\'weekly\')">Open Weekly Calendar →</a>'
   );
   document.getElementById('play-strategies-monthly').innerHTML = playHTML(
-    '⚡ Recommended: Theta Decay Income',
-    ['45 DTE iron condors for steady monthly income.',
-     'VIX ' + MARKET.vix.toFixed(1) + ' supports premium selling. ' + scanStatus],
+    rs >= 45 ? 'Recommended: Theta Decay Income' : 'Consider: Long Puts / Hedges',
+    [rs >= 45 ? '45 DTE iron condors for steady monthly income. Regime: ' + rs + '/100.'
+              : 'Defensive regime (' + rs + '/100). Consider buying protection instead.',
+     'VIX ' + MARKET.vix.toFixed(1) + ' | IV Rank: ' + MARKET.ivRank + ' ' + scanStatus],
     '<a style="color:var(--blue);cursor:pointer;" onclick="switchToTab(\'theta\')">Open Theta Decay Calc →</a>'
   );
 }
@@ -6668,6 +6993,36 @@ const PT_STRAT_COLORS = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b
 const PT_RISK_PER_TRADE_PCT = 0.25;    // 25% of allocated $ per trade
 const PT_MAX_CONTRACTS = 10;            // cap contracts per position
 const PT_MAX_OPEN_PER_STRAT = 2;        // max concurrent positions per strategy
+const PT_MAX_DAILY_LOSS_PCT = 0.01;     // 1% of account max daily loss
+const PT_MAX_WEEKLY_LOSS_PCT = 0.03;    // 3% of account max weekly loss
+const PT_MAX_BUYING_POWER_PCT = 0.50;   // 50% max buying power usage
+const PT_MIN_SIGNAL_SCORE = 35;         // minimum composite score to enter
+
+// Risk gate: checks if a new trade passes all risk limits
+function ptRiskGate(trade, contracts, stratId, simBalance, simOpen, simClosed, currentDate) {
+  const maxRisk = (trade.maxLoss || trade.debit || 5) * 100 * contracts;
+
+  // 1. Buying power check
+  const currentMarginUsed = simOpen.reduce((s, p) => s + (p.trade.maxLoss || p.trade.debit || 5) * 100 * (p.trade.contracts || 1), 0);
+  const maxBP = simBalance * PT_MAX_BUYING_POWER_PCT;
+  if (currentMarginUsed + maxRisk > maxBP) return { pass: false, reason: 'Buying power exceeded (' + Math.round((currentMarginUsed + maxRisk) / simBalance * 100) + '% > 50%)' };
+
+  // 2. Daily loss limit
+  if (currentDate && simClosed.length > 0) {
+    const todayLoss = simClosed.filter(t => t.exitDate === currentDate && t.pl < 0).reduce((s, t) => s + Math.abs(t.pl), 0);
+    const dailyLimit = simBalance * PT_MAX_DAILY_LOSS_PCT;
+    if (todayLoss >= dailyLimit) return { pass: false, reason: 'Daily loss limit hit (-$' + Math.round(todayLoss) + ')' };
+  }
+
+  // 3. Max open positions per strategy
+  const stratOpen = simOpen.filter(p => p.stratId === stratId).length;
+  if (stratOpen >= PT_MAX_OPEN_PER_STRAT) return { pass: false, reason: 'Max ' + PT_MAX_OPEN_PER_STRAT + ' positions per strategy' };
+
+  // 4. Position size vs account
+  if (maxRisk > simBalance * 0.05) return { pass: false, reason: 'Single position risk exceeds 5% of account' };
+
+  return { pass: true };
+}
 
 let ptState = JSON.parse(localStorage.getItem('ptState') || 'null') || {
   balance: PT_INITIAL_BALANCE, realizedPL: 0,
@@ -6682,6 +7037,112 @@ if (Object.keys(ptState.allocation).length === 0) {
 function ptSave() {
   if (ptState.closedTrades.length > 500) ptState.closedTrades = ptState.closedTrades.slice(-500);
   localStorage.setItem('ptState', JSON.stringify(ptState));
+}
+
+// --- Portfolio Greeks Aggregation ---
+function ptCalcPortfolioGreeks() {
+  let netDelta = 0, netGamma = 0, netTheta = 0, netVega = 0;
+  const positions = ptState.openPositions || [];
+
+  for (const pos of positions) {
+    const contracts = pos.trade.contracts || 1;
+    const multiplier = 100; // options multiplier
+    const strat = BACKTEST_STRATEGIES[pos.stratId];
+    if (!strat) continue;
+
+    const currentPrice = pos.currentPrice || pos.entryPrice;
+    const vixLevel = pos.lastVix || MARKET.vix || 20;
+    const remainingDte = Math.max(0, (pos.trade.dte || 30) - (pos.daysHeld || 0));
+    const T = Math.max(remainingDte, 0.25) / 365;
+    const r = OPT_RISK_FREE_RATE;
+    const q = OPT_DIVIDEND_YIELDS[pos.symbol] || 0;
+    const baseIV = vixLevel / 100;
+
+    function getGreeks(strike, type) {
+      const moneyness = strike / currentPrice;
+      const iv = ivSmile ? ivSmile(baseIV, moneyness, type, remainingDte) : baseIV;
+      try {
+        return bsGreeks(currentPrice, strike, T, r, iv, type);
+      } catch (e) { return { delta: 0, gamma: 0, theta: 0, vega: 0 }; }
+    }
+
+    // Iron Condor: short put + long put + short call + long call
+    if (pos.trade.shortPut && pos.trade.longPut && pos.trade.shortCall && pos.trade.longCall) {
+      const sp = getGreeks(pos.trade.shortPut, 'put');
+      const lp = getGreeks(pos.trade.longPut, 'put');
+      const sc = getGreeks(pos.trade.shortCall, 'call');
+      const lc = getGreeks(pos.trade.longCall, 'call');
+      // Short legs: negate delta/gamma/vega, positive theta
+      netDelta += (-sp.delta + lp.delta - sc.delta + lc.delta) * contracts * multiplier;
+      netGamma += (-sp.gamma + lp.gamma - sc.gamma + lc.gamma) * contracts * multiplier;
+      netTheta += (-sp.theta + lp.theta - sc.theta + lc.theta) * contracts * multiplier; // already negative for shorts
+      netVega += (-sp.vega + lp.vega - sc.vega + lc.vega) * contracts * multiplier;
+    }
+    // Put credit spread
+    else if (pos.trade.shortPut && pos.trade.longPut) {
+      const sp = getGreeks(pos.trade.shortPut, 'put');
+      const lp = getGreeks(pos.trade.longPut, 'put');
+      netDelta += (-sp.delta + lp.delta) * contracts * multiplier;
+      netGamma += (-sp.gamma + lp.gamma) * contracts * multiplier;
+      netTheta += (-sp.theta + lp.theta) * contracts * multiplier;
+      netVega += (-sp.vega + lp.vega) * contracts * multiplier;
+    }
+    // Call credit spread
+    else if (pos.trade.shortCall && pos.trade.longCall) {
+      const sc = getGreeks(pos.trade.shortCall, 'call');
+      const lc = getGreeks(pos.trade.longCall, 'call');
+      netDelta += (-sc.delta + lc.delta) * contracts * multiplier;
+      netGamma += (-sc.gamma + lc.gamma) * contracts * multiplier;
+      netTheta += (-sc.theta + lc.theta) * contracts * multiplier;
+      netVega += (-sc.vega + lc.vega) * contracts * multiplier;
+    }
+  }
+
+  return { delta: netDelta, gamma: netGamma, theta: netTheta, vega: netVega };
+}
+
+function ptUpdateGreeksDisplay() {
+  const greeks = ptCalcPortfolioGreeks();
+  const de = document.getElementById('ptNetDelta');
+  const ga = document.getElementById('ptNetGamma');
+  const th = document.getElementById('ptNetTheta');
+  const ve = document.getElementById('ptNetVega');
+  const rl = document.getElementById('ptRiskLevel');
+
+  if (de) {
+    de.textContent = greeks.delta.toFixed(1);
+    de.style.color = Math.abs(greeks.delta) > 50 ? 'var(--orange)' : 'var(--text-primary)';
+  }
+  if (ga) {
+    ga.textContent = greeks.gamma.toFixed(2);
+    ga.style.color = Math.abs(greeks.gamma) > 10 ? 'var(--orange)' : 'var(--text-primary)';
+  }
+  if (th) {
+    th.textContent = '$' + greeks.theta.toFixed(0) + '/day';
+    th.style.color = greeks.theta > 0 ? 'var(--green)' : greeks.theta < 0 ? 'var(--red)' : 'var(--text-primary)';
+  }
+  if (ve) {
+    ve.textContent = greeks.vega.toFixed(1);
+    ve.style.color = Math.abs(greeks.vega) > 50 ? 'var(--orange)' : 'var(--text-primary)';
+  }
+
+  // Risk level assessment
+  if (rl) {
+    const absDelta = Math.abs(greeks.delta);
+    const absVega = Math.abs(greeks.vega);
+    const posCount = (ptState.openPositions || []).length;
+    const marginUsed = ptState.openPositions.reduce((s, p) => s + (p.trade.maxLoss || p.trade.debit || 5) * 100 * (p.trade.contracts || 1), 0);
+    const marginPct = marginUsed / PT_INITIAL_BALANCE * 100;
+
+    let riskLevel, riskColor;
+    if (posCount === 0) { riskLevel = 'NO POSITIONS'; riskColor = 'var(--text-muted)'; }
+    else if (absDelta > 100 || absVega > 100 || marginPct > 60) { riskLevel = 'HIGH RISK'; riskColor = 'var(--red)'; }
+    else if (absDelta > 50 || absVega > 50 || marginPct > 40) { riskLevel = 'MODERATE'; riskColor = 'var(--yellow)'; }
+    else { riskLevel = 'CONTROLLED'; riskColor = 'var(--green)'; }
+
+    rl.textContent = riskLevel;
+    rl.style.color = riskColor;
+  }
 }
 
 // --- Account Dashboard ---
@@ -6735,6 +7196,9 @@ function ptUpdateAccountCards() {
 
   const lastSim = document.getElementById('ptLastSim');
   if (ptState.lastSimDate) lastSim.textContent = 'Last simulation: ' + ptState.lastSimDate;
+
+  // Update portfolio Greeks
+  ptUpdateGreeksDisplay();
 }
 
 // --- Allocation Sliders ---
@@ -7158,6 +7622,10 @@ async function ptRunSimulation() {
               const contracts = Math.max(1, Math.min(PT_MAX_CONTRACTS, Math.floor(maxRiskPerTrade / Math.max(1, riskPerContract))));
               trade.contracts = contracts;
 
+              // Risk gate check
+              const riskCheck = ptRiskGate(trade, contracts, stratId, simBalance, simOpen, simClosed, date);
+              if (!riskCheck.pass) continue;
+
               // 0DTE same-day exit: enter and close on same bar
               const holdDays = strat.holdDays || 30;
               if (holdDays === 0) {
@@ -7278,15 +7746,42 @@ function ptRenderStratBreakdown() {
     const open = ptState.openPositions.filter(t => t.stratId === id);
     const totalPL = closed.reduce((s, t) => s + (t.pl || 0), 0);
     const wins = closed.filter(t => (t.pl || 0) >= 0).length;
+    const losses = closed.length - wins;
     const wr = closed.length > 0 ? (wins / closed.length * 100).toFixed(0) : '--';
+
+    // Advanced performance metrics
+    const avgWin = wins > 0 ? closed.filter(t => t.pl >= 0).reduce((s, t) => s + t.pl, 0) / wins : 0;
+    const avgLoss = losses > 0 ? closed.filter(t => t.pl < 0).reduce((s, t) => s + t.pl, 0) / losses : 0;
+    const profitFactor = avgLoss !== 0 ? Math.abs(avgWin * wins / (avgLoss * losses)) : wins > 0 ? 999 : 0;
+    const expectancy = closed.length > 0 ? totalPL / closed.length : 0;
+
+    // Max drawdown for this strategy
+    let peak = 0, maxDD = 0, runningPL = 0;
+    closed.forEach(t => {
+      runningPL += t.pl || 0;
+      if (runningPL > peak) peak = runningPL;
+      const dd = peak - runningPL;
+      if (dd > maxDD) maxDD = dd;
+    });
+
+    // Edge indicator: is this strategy actually making money?
+    const edgeColor = profitFactor > 1.5 ? 'var(--green)' : profitFactor > 1.0 ? 'var(--yellow)' : 'var(--red)';
+    const edgeLabel = profitFactor > 1.5 ? 'STRONG' : profitFactor > 1.0 ? 'MARGINAL' : 'NO EDGE';
+
     return `<div class="pt-strat-card" style="border-left:3px solid ${PT_STRAT_COLORS[i]};">
-      <div style="font-weight:600; font-size:0.85rem; margin-bottom:8px; color:${PT_STRAT_COLORS[i]};">${strat.name}</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-weight:600; font-size:0.85rem; color:${PT_STRAT_COLORS[i]};">${strat.name}</span>
+        <span style="font-size:0.65rem; padding:2px 6px; border-radius:3px; background:${edgeColor}22; color:${edgeColor}; font-weight:700;">${edgeLabel}</span>
+      </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:0.75rem;">
         <span style="color:var(--text-muted);">Allocation</span><span style="font-weight:600;">${ptState.allocation[id] || 0}%</span>
-        <span style="color:var(--text-muted);">Open</span><span>${open.length}</span>
-        <span style="color:var(--text-muted);">Closed</span><span>${closed.length}</span>
-        <span style="color:var(--text-muted);">Win Rate</span><span style="font-weight:600;">${wr}%</span>
-        <span style="color:var(--text-muted);">P&L</span><span style="font-weight:700; color:${totalPL >= 0 ? 'var(--green)' : 'var(--red)'};">${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(0)}</span>
+        <span style="color:var(--text-muted);">Win Rate</span><span style="font-weight:600;">${wr}% <span style="color:var(--text-muted); font-size:0.65rem;">(${wins}W/${losses}L)</span></span>
+        <span style="color:var(--text-muted);">Profit Factor</span><span style="font-weight:600; color:${edgeColor};">${profitFactor > 100 ? '99+' : profitFactor.toFixed(2)}</span>
+        <span style="color:var(--text-muted);">Expectancy</span><span style="font-weight:600; color:${expectancy >= 0 ? 'var(--green)' : 'var(--red)'};">${expectancy >= 0 ? '+' : ''}$${expectancy.toFixed(0)}/trade</span>
+        <span style="color:var(--text-muted);">Avg Win</span><span style="color:var(--green);">+$${avgWin.toFixed(0)}</span>
+        <span style="color:var(--text-muted);">Avg Loss</span><span style="color:var(--red);">$${avgLoss.toFixed(0)}</span>
+        <span style="color:var(--text-muted);">Max Drawdown</span><span style="color:var(--orange);">-$${maxDD.toFixed(0)}</span>
+        <span style="color:var(--text-muted);">Total P&L</span><span style="font-weight:700; color:${totalPL >= 0 ? 'var(--green)' : 'var(--red)'};">${totalPL >= 0 ? '+' : ''}$${totalPL.toFixed(0)}</span>
       </div>
     </div>`;
   }).join('');

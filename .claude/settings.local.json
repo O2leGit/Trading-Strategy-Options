@@ -140,7 +140,24 @@
       "Bash(railway login:*)",
       "Bash(git tag:*)",
       "Bash(npx vibe-kanban:*)",
-      "Bash(npx get-shit-done-cc:*)"
+      "Bash(npx get-shit-done-cc:*)",
+      "Bash(npx claude-code-templates@latest --hook git/pre-commit-validation --yes)",
+      "Bash(npx claude-code-templates@latest --hook notify-before-bash --hook backup-before-edit --hook git-add-changes --yes)",
+      "Bash(npx claude-code-templates@latest --hook notify-before-bash --yes)",
+      "Read(//c/Users/Chris/.claude/**)",
+      "Bash(start \"\" \"C:\\\\Users\\\\Chris\\\\Documents\\\\Trading_Strategy_Options\\\\opus_analysis.txt\")",
+      "Read(//c/Users/Chris/Documents/**)",
+      "Read(//c/Users/Chris/projects/**)",
+      "Bash(for dir:*)",
+      "Bash(do touch:*)",
+      "Bash(done)",
+      "Bash(cp \"C:/Users/Chris/Downloads/CLAUDE.md\" \"C:/Users/Chris/Documents/trading/CLAUDE.md\")",
+      "Bash(cp \"C:/Users/Chris/Downloads/UPGRADE_ROADMAP.md\" \"C:/Users/Chris/Documents/trading/.planning/UPGRADE_ROADMAP.md\")",
+      "Bash(cp \"C:/Users/Chris/Downloads/SPEC-connection-module.md\" \"C:/Users/Chris/Documents/trading/.planning/SPEC-connection-module.md\")",
+      "Bash(python -m pip install ib_async pandas numpy python-dotenv pytest pytest-asyncio)",
+      "Bash(python -m pytest tests/test_connection.py -v)",
+      "Bash(python -m pytest tests/test_risk.py -v)",
+      "Bash(python -m pytest tests/ -v)"
     ]
   }
 }
