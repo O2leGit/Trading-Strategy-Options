@@ -3072,12 +3072,31 @@ body {
 
 <script>
 // ===== API KEY MANAGEMENT =====
+let _serverKeys = null;
+async function fetchServerKeys() {
+  if (_serverKeys) return _serverKeys;
+  try {
+    const resp = await fetch('/api/keys');
+    if (resp.ok) {
+      _serverKeys = await resp.json();
+      // Auto-save server keys to localStorage so they persist
+      if (_serverKeys.finnhub && !localStorage.getItem('apiKey_finnhub')) localStorage.setItem('apiKey_finnhub', _serverKeys.finnhub);
+      if (_serverKeys.twelve && !localStorage.getItem('apiKey_twelve')) localStorage.setItem('apiKey_twelve', _serverKeys.twelve);
+      if (_serverKeys.polygon && !localStorage.getItem('apiKey_polygon')) localStorage.setItem('apiKey_polygon', _serverKeys.polygon);
+    }
+  } catch (e) { console.warn('Could not fetch server keys:', e.message); }
+  return _serverKeys || {};
+}
+// Eagerly fetch server keys on load
+fetchServerKeys();
+
 function getApiKeys() {
+  const sk = _serverKeys || {};
   return {
-    finnhub: localStorage.getItem('apiKey_finnhub') || '',
-    twelve: localStorage.getItem('apiKey_twelve') || '',
+    finnhub: localStorage.getItem('apiKey_finnhub') || sk.finnhub || '',
+    twelve: localStorage.getItem('apiKey_twelve') || sk.twelve || '',
     alpha: localStorage.getItem('apiKey_alpha') || '',
-    polygon: localStorage.getItem('apiKey_polygon') || ''
+    polygon: localStorage.getItem('apiKey_polygon') || sk.polygon || ''
   };
 }
 function showApiConfig() {
