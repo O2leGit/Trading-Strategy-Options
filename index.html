@@ -908,84 +908,125 @@ body {
       </div>
     </div>
 
-    <!-- ===== DAILY COMMAND CENTER: First thing you see ===== -->
-    <div class="card" style="border:1px solid var(--cyan); margin-bottom:12px; padding:14px 16px; background:linear-gradient(135deg, rgba(6,182,212,0.05), rgba(139,92,246,0.03));">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <span class="card-title" style="color:var(--cyan); font-size:1.05rem;">Daily Command Center</span>
-        <span id="cmdCenterTime" style="font-size:0.7rem; color:var(--text-muted);"></span>
+    <!-- ===== COMPACT STATUS BAR ===== -->
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; align-items:stretch;" id="cmdStatusBar">
+      <div style="flex:1; min-width:90px; background:var(--bg-card-alt); border-radius:6px; padding:6px 10px; border-left:3px solid var(--cyan); display:flex; align-items:center; gap:8px;">
+        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Regime</div>
+        <div id="cmdRegime" style="font-size:0.9rem; font-weight:700; color:var(--cyan);">--</div>
+        <div id="cmdRegimeLabel" style="font-size:0.62rem; color:var(--text-secondary);">Loading...</div>
       </div>
-      <div id="cmdCenterContent">
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
-          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--cyan);">
-            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Regime</div>
-            <div id="cmdRegime" style="font-size:1rem; font-weight:700; color:var(--cyan);">--</div>
-            <div id="cmdRegimeLabel" style="font-size:0.68rem; color:var(--text-secondary);">Loading...</div>
-          </div>
-          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--yellow);">
-            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">VIX / IV Rank</div>
-            <div id="cmdVix" style="font-size:1rem; font-weight:700; color:var(--yellow);">--</div>
-            <div id="cmdIvRank" style="font-size:0.68rem; color:var(--text-secondary);">--</div>
-          </div>
-          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--green);">
-            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Today's Edge</div>
-            <div id="cmdEdge" style="font-size:1rem; font-weight:700; color:var(--green);">--</div>
-            <div id="cmdEdgeDetail" style="font-size:0.68rem; color:var(--text-secondary);">Scanning...</div>
-          </div>
-          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--purple);">
-            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Positions</div>
-            <div id="cmdPositions" style="font-size:1rem; font-weight:700; color:var(--purple);">0</div>
-            <div id="cmdPosDetail" style="font-size:0.68rem; color:var(--text-secondary);">No positions</div>
-          </div>
-          <div style="flex:1; min-width:120px; background:var(--bg-card-alt); border-radius:8px; padding:8px 12px; border-left:3px solid var(--red);">
-            <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Action</div>
-            <div id="cmdActions" style="font-size:1rem; font-weight:700; color:var(--text-muted);">0</div>
-            <div id="cmdActionDetail" style="font-size:0.68rem; color:var(--text-secondary);">All clear</div>
-          </div>
-        </div>
-        <div id="cmdGamePlan" style="font-size:0.78rem; color:var(--text-secondary); background:var(--bg-card-alt); border-radius:6px; padding:10px 14px; border-left:3px solid var(--cyan); margin-bottom:0;">
-          Loading game plan...
-        </div>
-        <!-- AI Brief renders inline here -->
-        <div id="aiBriefContent" style="display:none; margin-top:10px;"></div>
-        <div id="aiBriefLoading" style="display:none; padding:30px; text-align:center;">
-          <div style="color:var(--cyan); font-size:0.9rem; font-weight:600;">Generating AI Market Brief...</div>
-          <div style="color:var(--text-muted); font-size:0.78rem; margin-top:6px;">Claude is analyzing all market signals</div>
-          <div style="margin-top:10px; height:3px; background:var(--border); border-radius:2px; overflow:hidden;">
-            <div style="height:100%; width:60%; background:var(--cyan); border-radius:2px; animation: pulse 1.5s ease-in-out infinite;"></div>
-          </div>
-        </div>
+      <div style="flex:1; min-width:90px; background:var(--bg-card-alt); border-radius:6px; padding:6px 10px; border-left:3px solid var(--yellow); display:flex; align-items:center; gap:8px;">
+        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">VIX</div>
+        <div id="cmdVix" style="font-size:0.9rem; font-weight:700; color:var(--yellow);">--</div>
+        <div id="cmdIvRank" style="font-size:0.62rem; color:var(--text-secondary);">--</div>
+      </div>
+      <div style="flex:1; min-width:90px; background:var(--bg-card-alt); border-radius:6px; padding:6px 10px; border-left:3px solid var(--green); display:flex; align-items:center; gap:8px;">
+        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Edge</div>
+        <div id="cmdEdge" style="font-size:0.9rem; font-weight:700; color:var(--green);">--</div>
+        <div id="cmdEdgeDetail" style="font-size:0.62rem; color:var(--text-secondary);">Scanning...</div>
+      </div>
+      <div style="flex:1; min-width:90px; background:var(--bg-card-alt); border-radius:6px; padding:6px 10px; border-left:3px solid var(--purple); display:flex; align-items:center; gap:8px;">
+        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Positions</div>
+        <div id="cmdPositions" style="font-size:0.9rem; font-weight:700; color:var(--purple);">0</div>
+        <div id="cmdPosDetail" style="font-size:0.62rem; color:var(--text-secondary);">No positions</div>
+      </div>
+      <div style="flex:1; min-width:90px; background:var(--bg-card-alt); border-radius:6px; padding:6px 10px; border-left:3px solid var(--red); display:flex; align-items:center; gap:8px;">
+        <div style="font-size:0.6rem; color:var(--text-muted); text-transform:uppercase;">Action</div>
+        <div id="cmdActions" style="font-size:0.9rem; font-weight:700; color:var(--text-muted);">0</div>
+        <div id="cmdActionDetail" style="font-size:0.62rem; color:var(--text-secondary);">All clear</div>
       </div>
     </div>
 
-    <!-- ===== POSITIONS NEEDING ACTION: Urgent alerts first ===== -->
-    <div class="card" id="posActionCard" style="border:1px solid var(--red); margin-bottom:16px; display:none;">
+    <!-- ===== POSITIONS NEEDING ACTION: Urgent alerts ===== -->
+    <div class="card" id="posActionCard" style="border:2px solid var(--red); margin-bottom:10px; display:none; background:rgba(239,68,68,0.06);">
       <div class="card-header" style="padding-bottom:4px;">
-        <span class="card-title" style="color:var(--red);">Positions Needing Action</span>
+        <span class="card-title" style="color:var(--red); font-size:1.05rem;">ADJUST NOW</span>
         <span class="badge badge-red" id="posActionCount">0</span>
       </div>
       <div id="posActionContainer" style="padding:4px 12px 12px;"></div>
     </div>
 
-    <!-- ===== TOP TRADES PANEL: Collapsible ===== -->
-    <div class="card" style="border:1px solid var(--cyan); margin-bottom:12px; padding:14px 16px;">
+    <!-- ===== #1 BEST TRADE HERO CARD ===== -->
+    <div id="heroTradeCard" style="display:none; margin-bottom:10px; border:2px solid var(--green); border-radius:10px; padding:16px 20px; background:linear-gradient(135deg, rgba(34,197,94,0.08), rgba(6,182,212,0.04));">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:1.2rem; font-weight:800; color:var(--green);">#1 TRADE</span>
+          <span id="heroScore" style="font-size:0.8rem; padding:3px 10px; border-radius:4px; font-weight:700;"></span>
+          <span id="heroHorizon" style="font-size:0.7rem; padding:2px 8px; border-radius:3px; font-weight:600;"></span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span id="cmdCenterTime" style="font-size:0.65rem; color:var(--text-muted);"></span>
+          <button class="quick-btn" onclick="generateTopTrades()" style="padding:4px 12px; font-size:0.72rem;">Rescan</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+        <div>
+          <div id="heroTicker" style="font-size:1.6rem; font-weight:800; color:var(--text-primary);"></div>
+          <div id="heroStrategy" style="font-size:0.8rem; color:var(--text-secondary);"></div>
+        </div>
+        <div style="flex:1; min-width:200px;">
+          <div id="heroDetail" style="font-size:0.95rem; color:var(--text-primary); font-weight:600; font-family:monospace;"></div>
+        </div>
+        <div style="display:flex; gap:16px; text-align:center;">
+          <div>
+            <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase;">Credit</div>
+            <div id="heroCredit" style="font-size:1.1rem; font-weight:700; color:var(--green);"></div>
+          </div>
+          <div>
+            <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase;">Max Risk</div>
+            <div id="heroRisk" style="font-size:1.1rem; font-weight:700; color:var(--text-muted);"></div>
+          </div>
+          <div>
+            <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase;">DTE</div>
+            <div id="heroDTE" style="font-size:1.1rem; font-weight:700; color:var(--cyan);"></div>
+          </div>
+          <div>
+            <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase;">Size</div>
+            <div id="heroSize" style="font-size:1.1rem; font-weight:700; color:var(--purple);"></div>
+          </div>
+          <div>
+            <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase;">Return</div>
+            <div id="heroReturn" style="font-size:1.1rem; font-weight:700; color:var(--green);"></div>
+          </div>
+        </div>
+      </div>
+      <div id="heroRationale" style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px; padding:6px 10px; background:var(--bg-card-alt); border-radius:4px; border-left:3px solid var(--green);"></div>
+    </div>
+
+    <!-- ===== GAME PLAN (compact) ===== -->
+    <div id="cmdGamePlan" style="font-size:0.75rem; color:var(--text-secondary); background:var(--bg-card-alt); border-radius:6px; padding:8px 12px; border-left:3px solid var(--cyan); margin-bottom:10px;">
+      Loading game plan...
+    </div>
+
+    <!-- AI Brief renders inline here -->
+    <div id="aiBriefContent" style="display:none; margin-top:0; margin-bottom:10px;"></div>
+    <div id="aiBriefLoading" style="display:none; padding:30px; text-align:center;">
+      <div style="color:var(--cyan); font-size:0.9rem; font-weight:600;">Generating AI Market Brief...</div>
+      <div style="color:var(--text-muted); font-size:0.78rem; margin-top:6px;">Claude is analyzing all market signals</div>
+      <div style="margin-top:10px; height:3px; background:var(--border); border-radius:2px; overflow:hidden;">
+        <div style="height:100%; width:60%; background:var(--cyan); border-radius:2px; animation: pulse 1.5s ease-in-out infinite;"></div>
+      </div>
+    </div>
+
+    <!-- ===== MORE TRADES TABLE ===== -->
+    <div class="card" style="border:1px solid var(--border); margin-bottom:12px; padding:14px 16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleTopTrades()">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span class="card-title" style="color:var(--cyan);">Top Trades Right Now</span>
+          <span class="card-title" style="color:var(--cyan);">More Trades</span>
           <span class="badge" id="topTradesRegime" style="font-size:0.7rem;"></span>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <button class="quick-btn" onclick="event.stopPropagation(); generateTopTrades()" style="padding:4px 12px; font-size:0.75rem;">Rescan</button>
           <span id="topTradesToggle" style="color:var(--text-muted); font-size:0.9rem; transition:transform 0.2s;">&#9660;</span>
         </div>
       </div>
       <div id="topTradesContainer" style="padding:4px 0; margin-top:8px;">
         <div style="color:var(--text-muted); font-size:0.82rem; padding:20px; text-align:center;">
-          Scanning options chains... Top trades auto-populate as data loads.
+          Scanning options chains... Trades auto-populate as data loads.
         </div>
       </div>
     </div>
 
-    <!-- AI Brief is now integrated into Daily Command Center above -->
+    <!-- AI Brief is now below trades -->
 
     <div class="grid-2">
       <div class="card">
@@ -6149,54 +6190,98 @@ function generateTopTrades() {
   const minScore = rs >= 55 ? 30 : rs >= 35 ? 40 : 50; // higher bar in bad regimes
   const filtered = sectorCapped.filter(p => p.score.composite >= minScore);
 
+  // Helper for position sizing
+  function calcSize(p) {
+    const acctSize = 100000;
+    const riskPct = rs >= 55 ? 0.02 : rs >= 35 ? 0.01 : 0.005;
+    const maxRiskPerTrade = acctSize * riskPct;
+    const riskPerContract = p.maxRisk ? parseFloat(p.maxRisk) * 100 : 500;
+    const suggestedContracts = Math.max(1, Math.min(10, Math.floor(maxRiskPerTrade / riskPerContract)));
+    return { contracts: suggestedContracts, totalCredit: (p.credit * suggestedContracts * 100).toFixed(0), totalRisk: (riskPerContract * suggestedContracts).toFixed(0), returnPct: p.maxRisk ? ((p.credit / p.maxRisk) * 100).toFixed(0) : '--' };
+  }
+
+  // Populate #1 Hero Trade card
+  const heroCard = document.getElementById('heroTradeCard');
   if (filtered.length === 0) {
+    if (heroCard) heroCard.style.display = 'none';
     container.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:30px; text-align:center;">' +
       (unique.length > 0 ? 'No trades meet minimum score threshold (' + minScore + ') in current regime. ' + unique.length + ' plays scanned.' : 'No option chains loaded yet. Waiting for Polygon data...') + '</div>';
     return;
   }
 
-  // Render top trades
-  const top = filtered.slice(0, 15);
-  container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-muted); padding:2px 12px; margin-bottom:6px;">' +
-    filtered.length + ' trades ranked from ' + unique.length + ' scanned | Min score: ' + minScore + ' | Regime: ' + MARKET.regimeAdvice.split('.')[0] + '</div>' +
-    '<table style="width:100%; font-size:0.8rem; border-collapse:collapse;">' +
-    '<thead><tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px;">' +
-    '<th style="padding:6px 8px; text-align:left;">#</th>' +
-    '<th style="padding:6px 8px; text-align:left;">Score</th>' +
-    '<th style="padding:6px 8px; text-align:left;">Ticker</th>' +
-    '<th style="padding:6px 8px; text-align:left;">Strategy</th>' +
-    '<th style="padding:6px 8px; text-align:left;">Trade</th>' +
-    '<th style="padding:6px 8px; text-align:right;">Credit</th>' +
-    '<th style="padding:6px 8px; text-align:right;">Risk</th>' +
-    '<th style="padding:6px 8px; text-align:center;">DTE</th>' +
-    '<th style="padding:6px 8px; text-align:center;">Size</th>' +
-    '<th style="padding:6px 8px; text-align:center;">Horizon</th>' +
-    '</tr></thead><tbody>' +
-    top.map((p, i) => {
-      const returnPct = p.maxRisk ? ((p.credit / p.maxRisk) * 100).toFixed(0) : '--';
-      const horizonColor = p.horizon === 'DAY' ? 'var(--red)' : p.horizon === 'SWING' ? 'var(--yellow)' : 'var(--green)';
-      // Position sizing: 2% risk per trade on $100k account, adjusted by regime
-      const acctSize = 100000;
-      const riskPct = rs >= 55 ? 0.02 : rs >= 35 ? 0.01 : 0.005; // 2% / 1% / 0.5% based on regime
-      const maxRiskPerTrade = acctSize * riskPct;
-      const riskPerContract = p.maxRisk ? parseFloat(p.maxRisk) * 100 : 500;
-      const suggestedContracts = Math.max(1, Math.min(10, Math.floor(maxRiskPerTrade / riskPerContract)));
-      const totalCredit = (p.credit * suggestedContracts * 100).toFixed(0);
-      const totalRisk = (riskPerContract * suggestedContracts).toFixed(0);
-      return '<tr style="border-top:1px solid var(--border);' + (i === 0 ? 'background:rgba(6,182,212,0.08);' : '') + '">' +
-        '<td style="padding:8px; font-weight:700; color:var(--cyan);">' + (i + 1) + '</td>' +
-        '<td style="padding:8px;">' + signalScoreBadge(p.score) + '</td>' +
-        '<td style="padding:8px; font-weight:700;">' + p.sym + ' <span style="color:var(--text-muted);font-size:0.7rem;">$' + (p.price||0).toFixed(0) + '</span></td>' +
-        '<td style="padding:8px; font-size:0.75rem;">' + p.strategy + '</td>' +
-        '<td style="padding:8px; font-size:0.75rem; color:var(--text-secondary);">' + p.detail + '</td>' +
-        '<td style="padding:8px; text-align:right; color:var(--green); font-weight:600;">$' + (p.credit||0).toFixed(2) + '</td>' +
-        '<td style="padding:8px; text-align:right; color:var(--text-muted);">' + (p.maxRisk ? '$' + parseFloat(p.maxRisk).toFixed(2) : '--') + ' <span style="font-size:0.65rem;">(' + returnPct + '%)</span></td>' +
-        '<td style="padding:8px; text-align:center;">' + (p.dte||'--') + '</td>' +
-        '<td style="padding:8px; text-align:center;"><span style="font-size:0.72rem; font-weight:600; color:var(--purple);">' + suggestedContracts + 'x</span><br><span style="font-size:0.6rem; color:var(--text-muted);">$' + totalCredit + ' / $' + totalRisk + '</span></td>' +
-        '<td style="padding:8px; text-align:center;"><span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:' + horizonColor + '22; color:' + horizonColor + '; font-weight:600;">' + p.horizon + '</span></td>' +
-        '</tr>';
-    }).join('') +
-    '</tbody></table>';
+  const best = filtered[0];
+  const bestSize = calcSize(best);
+  if (heroCard) {
+    heroCard.style.display = 'block';
+    const scoreEl = document.getElementById('heroScore');
+    const grade = best.score.composite >= 80 ? 'A+' : best.score.composite >= 70 ? 'A' : best.score.composite >= 60 ? 'B' : 'C';
+    const gradeColor = grade.startsWith('A') ? 'var(--green)' : grade === 'B' ? 'var(--yellow)' : 'var(--text-muted)';
+    scoreEl.textContent = best.score.composite + ' (' + grade + ')';
+    scoreEl.style.background = gradeColor + '22';
+    scoreEl.style.color = gradeColor;
+    const horizonEl = document.getElementById('heroHorizon');
+    const hColor = best.horizon === 'DAY' ? 'var(--red)' : best.horizon === 'SWING' ? 'var(--yellow)' : 'var(--green)';
+    horizonEl.textContent = best.horizon;
+    horizonEl.style.background = hColor + '22';
+    horizonEl.style.color = hColor;
+    document.getElementById('heroTicker').textContent = best.sym + '  $' + (best.price||0).toFixed(0);
+    document.getElementById('heroStrategy').textContent = best.strategy;
+    document.getElementById('heroDetail').textContent = best.detail;
+    document.getElementById('heroCredit').textContent = '$' + (best.credit||0).toFixed(2);
+    document.getElementById('heroRisk').textContent = best.maxRisk ? '$' + parseFloat(best.maxRisk).toFixed(2) : '--';
+    document.getElementById('heroDTE').textContent = best.dte || '--';
+    document.getElementById('heroSize').textContent = bestSize.contracts + 'x';
+    document.getElementById('heroReturn').textContent = bestSize.returnPct + '%';
+    // Build rationale
+    const rationale = [];
+    if (best.score.factors) {
+      if (best.score.factors.iv > 15) rationale.push('IV rich');
+      if (best.score.factors.regime > 10) rationale.push('regime favorable');
+      if (best.score.factors.technical > 10) rationale.push('technical support');
+    }
+    rationale.push('Profit target: 50% ($' + (best.credit * 0.5 * bestSize.contracts * 100).toFixed(0) + ')');
+    rationale.push('Max loss: $' + bestSize.totalRisk);
+    document.getElementById('heroRationale').textContent = rationale.join(' | ');
+  }
+
+  // Render remaining trades (2+) in the table
+  const rest = filtered.slice(1, 15);
+  if (rest.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted); font-size:0.78rem; padding:12px; text-align:center;">Only 1 trade found above threshold. More populate as chains load.</div>';
+  } else {
+    container.innerHTML = '<div style="font-size:0.7rem; color:var(--text-muted); padding:2px 12px; margin-bottom:6px;">' +
+      filtered.length + ' total trades from ' + unique.length + ' scanned | Regime: ' + MARKET.regimeAdvice.split('.')[0] + '</div>' +
+      '<table style="width:100%; font-size:0.8rem; border-collapse:collapse;">' +
+      '<thead><tr style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px;">' +
+      '<th style="padding:6px 8px; text-align:left;">#</th>' +
+      '<th style="padding:6px 8px; text-align:left;">Score</th>' +
+      '<th style="padding:6px 8px; text-align:left;">Ticker</th>' +
+      '<th style="padding:6px 8px; text-align:left;">Strategy</th>' +
+      '<th style="padding:6px 8px; text-align:left;">Trade</th>' +
+      '<th style="padding:6px 8px; text-align:right;">Credit</th>' +
+      '<th style="padding:6px 8px; text-align:right;">Risk</th>' +
+      '<th style="padding:6px 8px; text-align:center;">DTE</th>' +
+      '<th style="padding:6px 8px; text-align:center;">Size</th>' +
+      '<th style="padding:6px 8px; text-align:center;">Horizon</th>' +
+      '</tr></thead><tbody>' +
+      rest.map((p, i) => {
+        const sz = calcSize(p);
+        const horizonColor = p.horizon === 'DAY' ? 'var(--red)' : p.horizon === 'SWING' ? 'var(--yellow)' : 'var(--green)';
+        return '<tr style="border-top:1px solid var(--border);">' +
+          '<td style="padding:8px; font-weight:700; color:var(--cyan);">' + (i + 2) + '</td>' +
+          '<td style="padding:8px;">' + signalScoreBadge(p.score) + '</td>' +
+          '<td style="padding:8px; font-weight:700;">' + p.sym + ' <span style="color:var(--text-muted);font-size:0.7rem;">$' + (p.price||0).toFixed(0) + '</span></td>' +
+          '<td style="padding:8px; font-size:0.75rem;">' + p.strategy + '</td>' +
+          '<td style="padding:8px; font-size:0.75rem; color:var(--text-secondary);">' + p.detail + '</td>' +
+          '<td style="padding:8px; text-align:right; color:var(--green); font-weight:600;">$' + (p.credit||0).toFixed(2) + '</td>' +
+          '<td style="padding:8px; text-align:right; color:var(--text-muted);">' + (p.maxRisk ? '$' + parseFloat(p.maxRisk).toFixed(2) : '--') + ' <span style="font-size:0.65rem;">(' + sz.returnPct + '%)</span></td>' +
+          '<td style="padding:8px; text-align:center;">' + (p.dte||'--') + '</td>' +
+          '<td style="padding:8px; text-align:center;"><span style="font-size:0.72rem; font-weight:600; color:var(--purple);">' + sz.contracts + 'x</span><br><span style="font-size:0.6rem; color:var(--text-muted);">$' + sz.totalCredit + ' / $' + sz.totalRisk + '</span></td>' +
+          '<td style="padding:8px; text-align:center;"><span style="font-size:0.7rem; padding:2px 6px; border-radius:3px; background:' + horizonColor + '22; color:' + horizonColor + '; font-weight:600;">' + p.horizon + '</span></td>' +
+          '</tr>';
+      }).join('') +
+      '</tbody></table>';
+  }
 }
 
 function generateBestPlays(tabId) {
