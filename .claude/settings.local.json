@@ -157,7 +157,8 @@
       "Bash(python -m pip install ib_async pandas numpy python-dotenv pytest pytest-asyncio)",
       "Bash(python -m pytest tests/test_connection.py -v)",
       "Bash(python -m pytest tests/test_risk.py -v)",
-      "Bash(python -m pytest tests/ -v)"
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(taskkill //PID 11956 //F)"
     ]
   }
 }
