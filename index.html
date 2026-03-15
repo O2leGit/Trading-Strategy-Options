@@ -741,7 +741,7 @@ body {
       </div>
     </div>
     <div style="margin-bottom:20px;">
-      <label style="display:block;font-size:0.78rem;color:var(--text-secondary);margin-bottom:4px;">Alpha Vantage API Key <span style="color:var(--yellow);">(FREE — 25 calls/day)</span></label>
+      <label style="display:block;font-size:0.78rem;color:var(--text-secondary);margin-bottom:4px;">Alpha Vantage API Key <span style="color:var(--green);">(FREE — 25 calls/day, Quotes + Technicals + News)</span></label>
       <div style="display:flex;gap:8px;align-items:center;">
         <input id="cfgAlpha" type="text" placeholder="Get free key at alphavantage.co" style="flex:1;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text-primary);font-size:0.85rem;">
         <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color:var(--blue);font-size:0.75rem;white-space:nowrap;">Get Key →</a>
@@ -3083,6 +3083,7 @@ async function fetchServerKeys() {
       if (_serverKeys.finnhub && !localStorage.getItem('apiKey_finnhub')) localStorage.setItem('apiKey_finnhub', _serverKeys.finnhub);
       if (_serverKeys.twelve && !localStorage.getItem('apiKey_twelve')) localStorage.setItem('apiKey_twelve', _serverKeys.twelve);
       if (_serverKeys.polygon && !localStorage.getItem('apiKey_polygon')) localStorage.setItem('apiKey_polygon', _serverKeys.polygon);
+      if (_serverKeys.alpha && !localStorage.getItem('apiKey_alpha')) localStorage.setItem('apiKey_alpha', _serverKeys.alpha);
     }
   } catch (e) { console.warn('Could not fetch server keys:', e.message); }
   return _serverKeys || {};
@@ -3095,7 +3096,7 @@ function getApiKeys() {
   return {
     finnhub: localStorage.getItem('apiKey_finnhub') || sk.finnhub || '',
     twelve: localStorage.getItem('apiKey_twelve') || sk.twelve || '',
-    alpha: localStorage.getItem('apiKey_alpha') || '',
+    alpha: localStorage.getItem('apiKey_alpha') || sk.alpha || '',
     polygon: localStorage.getItem('apiKey_polygon') || sk.polygon || ''
   };
 }
@@ -3252,6 +3253,127 @@ async function fetchTwelveData(symbol) {
   const d = await resp.json();
   if (d.code) throw new Error(d.message);
   return { price: parseFloat(d.close), prevClose: parseFloat(d.previous_close), change: parseFloat(d.change), changePct: parseFloat(d.percent_change) };
+}
+
+// ===== ALPHA VANTAGE QUOTES (4th fallback) =====
+async function fetchAlphaVantage(symbol) {
+  const keys = getApiKeys();
+  if (!keys.alpha) return null;
+  // Try server proxy first (has caching)
+  try {
+    const resp = await fetch('/api/alpha/query?function=GLOBAL_QUOTE&symbol=' + encodeURIComponent(symbol));
+    if (resp.ok) {
+      const d = await resp.json();
+      const q = d['Global Quote'];
+      if (q && q['05. price']) {
+        return {
+          price: parseFloat(q['05. price']),
+          prevClose: parseFloat(q['08. previous close']),
+          change: parseFloat(q['09. change']),
+          changePct: parseFloat(q['10. change percent'])
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Alpha Vantage server proxy failed:', e.message);
+  }
+  // Direct fallback
+  try {
+    const url = 'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=' + encodeURIComponent(symbol) + '&apikey=' + keys.alpha;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('Alpha HTTP ' + resp.status);
+    const d = await resp.json();
+    const q = d['Global Quote'];
+    if (!q || !q['05. price']) throw new Error('No quote data');
+    return {
+      price: parseFloat(q['05. price']),
+      prevClose: parseFloat(q['08. previous close']),
+      change: parseFloat(q['09. change']),
+      changePct: parseFloat(q['10. change percent'])
+    };
+  } catch (e) {
+    console.warn('Alpha Vantage fetch failed for ' + symbol + ':', e.message);
+    return null;
+  }
+}
+
+// Alpha Vantage Technical Indicators (RSI, MACD, Bollinger Bands)
+async function fetchAlphaTechnicals(symbol) {
+  const keys = getApiKeys();
+  if (!keys.alpha) return null;
+  const indicators = {};
+
+  // RSI
+  try {
+    const resp = await fetch('/api/alpha/query?function=RSI&symbol=' + encodeURIComponent(symbol) + '&interval=daily&time_period=14&series_type=close');
+    if (resp.ok) {
+      const d = await resp.json();
+      const rsiData = d['Technical Analysis: RSI'];
+      if (rsiData) {
+        const latest = Object.values(rsiData)[0];
+        indicators.rsi = parseFloat(latest.RSI);
+      }
+    }
+  } catch (e) { console.warn('Alpha RSI failed:', e.message); }
+
+  // MACD
+  try {
+    const resp = await fetch('/api/alpha/query?function=MACD&symbol=' + encodeURIComponent(symbol) + '&interval=daily&series_type=close');
+    if (resp.ok) {
+      const d = await resp.json();
+      const macdData = d['Technical Analysis: MACD'];
+      if (macdData) {
+        const latest = Object.values(macdData)[0];
+        indicators.macd = parseFloat(latest.MACD);
+        indicators.macdSignal = parseFloat(latest.MACD_Signal);
+        indicators.macdHist = parseFloat(latest.MACD_Hist);
+      }
+    }
+  } catch (e) { console.warn('Alpha MACD failed:', e.message); }
+
+  // Bollinger Bands
+  try {
+    const resp = await fetch('/api/alpha/query?function=BBANDS&symbol=' + encodeURIComponent(symbol) + '&interval=daily&time_period=20&series_type=close');
+    if (resp.ok) {
+      const d = await resp.json();
+      const bbData = d['Technical Analysis: BBANDS'];
+      if (bbData) {
+        const latest = Object.values(bbData)[0];
+        indicators.bbUpper = parseFloat(latest['Real Upper Band']);
+        indicators.bbMiddle = parseFloat(latest['Real Middle Band']);
+        indicators.bbLower = parseFloat(latest['Real Lower Band']);
+      }
+    }
+  } catch (e) { console.warn('Alpha BBANDS failed:', e.message); }
+
+  return Object.keys(indicators).length > 0 ? indicators : null;
+}
+
+// Alpha Vantage News Sentiment
+async function fetchAlphaNewsSentiment(tickers) {
+  const keys = getApiKeys();
+  if (!keys.alpha) return null;
+  try {
+    const tickerStr = (tickers || ['SPY']).join(',');
+    const resp = await fetch('/api/alpha/query?function=NEWS_SENTIMENT&tickers=' + encodeURIComponent(tickerStr) + '&limit=15');
+    if (!resp.ok) return null;
+    const d = await resp.json();
+    if (d.feed) {
+      return d.feed.map(item => ({
+        headline: item.title,
+        source: item.source,
+        url: item.url,
+        datetime: Math.floor(new Date(item.time_published.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6')).getTime() / 1000),
+        summary: item.summary,
+        sentimentScore: item.overall_sentiment_score,
+        sentimentLabel: item.overall_sentiment_label
+      }));
+    }
+    return null;
+  } catch (e) {
+    console.warn('Alpha news sentiment failed:', e.message);
+    return null;
+  }
 }
 
 // ===== YAHOO OPTIONS CHAIN =====
@@ -3664,6 +3786,29 @@ async function fetchAllMarketData() {
       }
     }
 
+    // If still missing data, try Alpha Vantage as 4th fallback
+    const stillMissing = !hasYahoo || Object.entries(yahooData).some(([k,v]) => v === null);
+    if (stillMissing) {
+      const keys = getApiKeys();
+      if (keys.alpha) {
+        try {
+          const alphaSymbols = { spx: 'SPY', dow: 'DIA', nasdaq: 'QQQ', vix: 'VIXY' };
+          for (const [key, sym] of Object.entries(alphaSymbols)) {
+            if (!yahooData[key]) {
+              const avData = await fetchAlphaVantage(sym);
+              if (avData && avData.price > 0) {
+                if (key === 'spx') { avData.price *= 10; avData.prevClose *= 10; avData.change *= 10; }
+                updateMarketCards({ [key]: avData });
+                MARKET.sources[key] = 'alpha';
+                const time = new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+                setDataStatus('🟡', 'LIVE · Alpha Vantage · ' + time, 'var(--yellow)');
+              }
+            }
+          }
+        } catch (e) { console.warn('Alpha Vantage fallback error:', e); }
+      }
+    }
+
     if (!hasYahoo && Object.keys(getApiKeys()).every(k => !getApiKeys()[k])) {
       setDataStatus('⚙️', 'Click to add API keys', 'var(--orange)');
     }
@@ -3847,6 +3992,23 @@ async function testPolygonFeed() {
   }
 }
 
+async function testAlphaFeed() {
+  const keys = getApiKeys();
+  if (!keys.alpha) return { feed: 'Alpha Vantage', source: 'Alpha Vantage', status: 'NO KEY', data: 'API key not configured', latency: '—' };
+  const t0 = performance.now();
+  try {
+    const result = await fetchAlphaVantage('SPY');
+    const ms = Math.round(performance.now() - t0);
+    if (result && result.price > 0) {
+      return { feed: 'Alpha Vantage', source: 'Alpha Vantage', status: 'LIVE', data: 'SPY: ' + fmt(result.price), latency: ms + 'ms' };
+    }
+    return { feed: 'Alpha Vantage', source: 'Alpha Vantage', status: 'FAIL', data: 'No data', latency: ms + 'ms' };
+  } catch (e) {
+    const ms = Math.round(performance.now() - t0);
+    return { feed: 'Alpha Vantage', source: 'Alpha Vantage', status: 'FAIL', data: e.message.substring(0, 40), latency: ms + 'ms' };
+  }
+}
+
 async function testOptionsChain() {
   const t0 = performance.now();
   const keys = getApiKeys();
@@ -3892,7 +4054,8 @@ async function runConnectionTest() {
     testOptionsChain(),
     testFinnhubFeed(),
     testTwelveFeed(),
-    testPolygonFeed()
+    testPolygonFeed(),
+    testAlphaFeed()
   ]);
 
   let html = '';

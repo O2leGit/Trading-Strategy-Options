@@ -169,7 +169,8 @@ app.get('/api/keys', (req, res) => {
   res.json({
     finnhub: process.env.FINNHUB_KEY || '',
     twelve: process.env.TWELVE_DATA_KEY || '',
-    polygon: process.env.POLYGON_KEY || ''
+    polygon: process.env.POLYGON_KEY || '',
+    alpha: process.env.ALPHA_VANTAGE_KEY || ''
   });
 });
 
@@ -227,6 +228,36 @@ app.get('/api/polygon/*', async (req, res) => {
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
     polygonCache[cacheKey] = { data: r.data, time: Date.now() };
+    res.json(r.data);
+  } catch (e) {
+    res.status(e.response?.status || 500).json({ error: e.message });
+  }
+});
+
+// ─── Alpha Vantage Proxy (with caching — free tier is 25 calls/day) ──
+const alphaCache = {};
+const ALPHA_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (aggressive caching for low rate limit)
+
+app.get('/api/alpha/*', async (req, res) => {
+  const alphaKey = process.env.ALPHA_VANTAGE_KEY || '';
+  if (!alphaKey) return res.status(400).json({ error: 'Alpha Vantage key not configured' });
+
+  const alphaPath = req.params[0]; // everything after /api/alpha/
+  const queryStr = new URLSearchParams(req.query);
+  queryStr.set('apikey', alphaKey);
+  const cacheKey = alphaPath + '?' + queryStr.toString();
+
+  // Return cached if fresh
+  if (alphaCache[cacheKey] && Date.now() - alphaCache[cacheKey].time < ALPHA_CACHE_TTL) {
+    return res.json(alphaCache[cacheKey].data);
+  }
+
+  try {
+    const url = `https://www.alphavantage.co/${alphaPath}?${queryStr.toString()}`;
+    const r = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    alphaCache[cacheKey] = { data: r.data, time: Date.now() };
     res.json(r.data);
   } catch (e) {
     res.status(e.response?.status || 500).json({ error: e.message });
