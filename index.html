@@ -3827,8 +3827,12 @@ async function testPolygonFeed() {
   if (!keys.polygon) return { feed: 'Polygon Options', source: 'Polygon.io', status: 'NO KEY', data: 'API key not configured', latency: '—' };
   const t0 = performance.now();
   try {
-    // Test with reference endpoint (free tier) + check cache status
-    const resp = await fetch('https://api.polygon.io/v3/reference/options/contracts?underlying_ticker=SPY&limit=5&apiKey=' + keys.polygon);
+    // Try server proxy first (has caching to avoid 429 rate limits)
+    let resp = await fetch('/api/polygon/v3/reference/options/contracts?underlying_ticker=SPY&limit=5').catch(() => null);
+    if (!resp || !resp.ok) {
+      // Fallback to direct API
+      resp = await fetch('https://api.polygon.io/v3/reference/options/contracts?underlying_ticker=SPY&limit=5&apiKey=' + keys.polygon);
+    }
     const ms = Math.round(performance.now() - t0);
     if (!resp.ok) return { feed: 'Polygon Options', source: 'Polygon.io', status: 'FAIL', data: 'HTTP ' + resp.status, latency: ms + 'ms' };
     const data = await resp.json();
@@ -3845,18 +3849,30 @@ async function testPolygonFeed() {
 
 async function testOptionsChain() {
   const t0 = performance.now();
+  const keys = getApiKeys();
   try {
-    const result = await fetchOptionsChain('SPY');
-    const ms = Math.round(performance.now() - t0);
-    if (result && result.options && result.options.length > 0) {
-      const numCalls = result.options[0].calls ? result.options[0].calls.length : 0;
-      const numPuts = result.options[0].puts ? result.options[0].puts.length : 0;
-      return { feed: 'Options Chain', source: 'Yahoo Finance', status: 'LIVE', data: numCalls + ' calls / ' + numPuts + ' puts', latency: ms + 'ms' };
+    // Yahoo v7 options is deprecated (requires crumb auth). Use Polygon via server proxy instead.
+    let resp = await fetch('/api/polygon/v3/reference/options/contracts?underlying_ticker=SPY&limit=50').catch(() => null);
+    if (!resp || !resp.ok) {
+      // Fallback to direct Polygon
+      if (keys.polygon) {
+        resp = await fetch('https://api.polygon.io/v3/reference/options/contracts?underlying_ticker=SPY&limit=50&apiKey=' + keys.polygon);
+      }
     }
-    return { feed: 'Options Chain', source: 'Yahoo Finance', status: 'FAIL', data: 'No chain data', latency: ms + 'ms' };
+    const ms = Math.round(performance.now() - t0);
+    if (resp && resp.ok) {
+      const data = await resp.json();
+      const count = data.results ? data.results.length : 0;
+      if (count > 0) {
+        const calls = data.results.filter(c => c.contract_type === 'call').length;
+        const puts = data.results.filter(c => c.contract_type === 'put').length;
+        return { feed: 'Options Chain', source: 'Polygon.io', status: 'LIVE', data: calls + ' calls / ' + puts + ' puts', latency: ms + 'ms' };
+      }
+    }
+    return { feed: 'Options Chain', source: 'Polygon.io', status: 'FAIL', data: 'No chain data', latency: (Math.round(performance.now() - t0)) + 'ms' };
   } catch (e) {
     const ms = Math.round(performance.now() - t0);
-    return { feed: 'Options Chain', source: 'Yahoo Finance', status: 'FAIL', data: e.message.substring(0, 40), latency: ms + 'ms' };
+    return { feed: 'Options Chain', source: 'Polygon.io', status: 'FAIL', data: e.message.substring(0, 40), latency: ms + 'ms' };
   }
 }
 
